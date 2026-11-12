@@ -214,7 +214,7 @@ A.D.A's own backend listens on `127.0.0.1:8001`; port 8000 remains available for
 A.D.A loads llama.cpp directly into its own Python backend through `llama-cpp-python`. There is no `llama-server.exe`, model HTTP server, Ollama, Docker, or separate inference process.
 
 1. Install the NVIDIA CUDA 13.0 Toolkit for the RTX 5070 if it is not already installed.
-2. Install Python dependencies with `python -m pip install -r requirements.txt`; this selects the CUDA 13.0 `llama-cpp-python` wheel (0.3.26 or newer for Gemma 4 MTMD support).
+2. Install Python dependencies with `python -m pip install -r requirements.txt`; this selects the CUDA 13.0 `llama-cpp-python` wheel (0.3.36 or newer for current model and Gemma 4 MTMD support).
 3. Obtain the K2-Horizon 7B GGUF file.
 4. Obtain the Gemma 4 12B Instruct GGUF file and its matching multimodal projector (mmproj) file.
 5. Start A.D.A and open **Settings → Local Model Runtime**.
