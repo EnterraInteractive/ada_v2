@@ -96,8 +96,8 @@ powershell -ExecutionPolicy Bypass -File scripts\setup_local.ps1
 npm install
 
 
-# 5. Run!
-npm run dev
+# 5. Run with Ada's project-local Node and Python runtimes
+powershell -ExecutionPolicy Bypass -File scripts\run_ada.ps1
 ```
 
 </details>
@@ -112,9 +112,10 @@ If you have never coded before, follow these steps first!
 **Step 1: Install Visual Studio Code (The Editor)**
 - Download and install [VS Code](https://code.visualstudio.com/). This is where you will write code and run commands.
 
-**Step 2: Install Python 3.11 (The Runtime)**
-- Install Python 3.11 for Windows and ensure the Python Launcher (`py`) is available.
-- A.D.A creates its own `.venv` inside the repository; Python packages are installed there instead of a global or Conda environment. The Python 3.11 interpreter itself, Node.js, Git, CMake, CUDA Toolkit, and NVIDIA driver remain machine-level prerequisites.
+**Step 2: Install the build prerequisites**
+- Install `uv`, Git, CMake, CUDA Toolkit 13.x, and a compatible NVIDIA driver.
+- A.D.A uses `uv` to install managed Python 3.11 under `.ada/python` and creates `.venv` inside the repository.
+- The setup script downloads portable Node.js under `.ada/tools`; no global Python or Node installation is required.
 
 **Step 3: Install Git (The Downloader)**
 - **Windows**: Download [Git for Windows](https://git-scm.com/download/win).
@@ -146,10 +147,10 @@ Once you have the basics above, continue here.
 ```
 
 **Windows:**
-- Python 3.11 (the Python Launcher `py` is recommended).
-- Node.js 18+ and npm for the Electron/React interface.
+- `uv` for the project-local Python 3.11 installation.
 - Git, CMake, and CUDA Toolkit 13.x for the pinned RTX 5070 K2 runtime build.
 - A compatible NVIDIA driver for the installed CUDA toolkit.
+- Global Python and Node.js are not required; the setup script installs managed Python and portable Node under `.ada/`.
 
 ### 2. Python Environment
 From the repository root, create the project-local `.venv`, install Python dependencies, and download Chromium into `.ada`:
@@ -158,18 +159,10 @@ From the repository root, create the project-local `.venv`, install Python depen
 powershell -ExecutionPolicy Bypass -File scripts\setup_local.ps1
 ```
 
-The script places Python packages in `.venv`, pip/Hugging Face/npm/temporary caches in `.ada\cache`, and Playwright Chromium in `.ada\browsers`. Electron refuses to silently fall back to a global Python interpreter if `.venv` is missing.
+The script places the managed Python runtime in `.ada/python`, Python packages in `.venv`, portable Node.js in `.ada/tools`, pip/Hugging Face/npm/temporary caches in `.ada\cache`, and Playwright Chromium in `.ada\browsers`. Electron refuses to silently fall back to a global Python interpreter if `.venv` is missing.
 
 ### 3. Frontend Setup
-Requires **Node.js 18+** and **npm**. Download from [nodejs.org](https://nodejs.org/) if not installed.
-
-```bash
-# Verify Node is installed
-node --version  # Should show v18.x or higher
-
-# Install frontend dependencies
-npm install
-```
+The setup script downloads portable Node.js 24.20.0 into `.ada/tools` and installs the locked frontend dependencies into `node_modules`. No global Node.js installation is needed.
 
 ### 4. 🔐 Face Authentication Setup
 To use the secure voice features, ADA needs to know what you look like.
@@ -383,7 +376,7 @@ Contributions are welcome! Here's how:
 ### Development Tips
 
 - Run the backend separately (`.venv\Scripts\python.exe backend\server.py`) to see Python logs.
-- Use `npm run dev` without Electron during frontend development (faster reload).
+- Use the portable Node executable under `.ada/tools/node-v24.20.0-win-x64/` to run Vite-only frontend development commands.
 - The `projects/` folder contains user data—don't commit it to Git.
 
 ---
