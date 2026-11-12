@@ -1,5 +1,9 @@
 name: A.D.A validation
 
+concurrency:
+  group: ada-validation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
