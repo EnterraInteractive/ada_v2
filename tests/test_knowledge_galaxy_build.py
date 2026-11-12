@@ -51,3 +51,70 @@ def test_galaxy_backend_uses_only_the_local_model_runtime():
     assert "api.anthropic.com" not in source
     assert "ANTHROPIC_API_KEY" not in source
     assert "_galaxy_chat_sync" not in source
+
+
+def test_offline_galaxy_viewer_uses_local_assets_and_local_hearing():
+    root = Path(__file__).resolve().parents[1]
+    viewer = (root / "viewer" / "index.html").read_text(encoding="utf-8")
+    assert 'src="/vendor/3d-force-graph.min.js"' in viewer
+    assert "https://" not in viewer
+    assert "http://" not in viewer
+    assert "SpeechRecognition" not in viewer
+    assert "webkitSpeechRecognition" not in viewer
+    assert "getUserMedia" in viewer
+    assert "function toggleHandsFree" in viewer
+    assert "function addNote" in viewer
+    assert "function speechChunks" in viewer
+    assert "/hear" in viewer and "/speak" in viewer
+
+
+def test_local_voice_and_offline_drill_modules_compile():
+    root = Path(__file__).resolve().parents[1]
+    modules = [
+        root / "server.py",
+        root / "backend" / "server.py",
+        root / "backend" / "local_voice.py",
+        root / "backend" / "voice_studio.py",
+        root / "backend" / "network_audit.py",
+        root / "scripts" / "ai" / "download_local_voice_models.py",
+        root / "scripts" / "ai" / "drill_offline.py",
+    ]
+    for module in modules:
+        source = module.read_text(encoding="utf-8")
+        compile(source, str(module), "exec")
+
+
+def test_local_speech_models_and_voice_studio_are_project_local():
+    root = Path(__file__).resolve().parents[1]
+    settings = json.loads((root / "backend" / "settings.json").read_text(encoding="utf-8"))
+    voice = settings["voice"]
+    assert voice["whisper_model_path"] == "models/voice/whisper-large-v3-turbo"
+    assert voice["wake_model_path"] == "models/voice/whisper-small"
+    assert voice["piper_model_path"].startswith("models/voice/")
+    studio = settings["voice_studio"]
+    assert studio["url"] == "http://127.0.0.1:3900"
+    assert studio["profile"] == "Jarvis"
+    downloader = (root / "scripts" / "ai" / "download_local_voice_models.py").read_text(encoding="utf-8")
+    assert "Systran/faster-whisper-small" in downloader
+    assert "Systran/faster-whisper-large-v3-turbo" in downloader
+
+
+def test_voice_studio_adapter_caches_locally_and_uses_loopback():
+    root = Path(__file__).resolve().parents[1]
+    source = (root / "backend" / "voice_studio.py").read_text(encoding="utf-8")
+    assert "http://127.0.0.1:3900" in source
+    assert '"/engines/select"' in source
+    assert '"/profiles"' in source
+    assert '"/v1/audio/speech"' in source
+    assert '".ada" / "cache" / "voice"' in source
+    assert "Standing by." in source
+
+
+def test_offline_network_audit_and_drill_are_present():
+    root = Path(__file__).resolve().parents[1]
+    audit = (root / "backend" / "network_audit.py").read_text(encoding="utf-8")
+    drill = (root / "scripts" / "ai" / "drill_offline.py").read_text(encoding="utf-8")
+    assert "socket.socket.connect" in audit
+    assert "record_browser_resources" in audit
+    assert "NON-LOCAL HOSTS" in drill
+    assert "scripts" in str(root / "scripts")
