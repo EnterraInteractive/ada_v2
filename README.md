@@ -18,7 +18,7 @@ A.D.A v2 is a single Electron development assistant. Its primary conversation an
 |---------|-------------|------------|
 | **🧠 Local Development Model** | Coding, reasoning, tool use, and project work | K2-Horizon 7B GGUF + managed llama.cpp |
 | **👁️ Vision Delegation** | Primary model requests image inspection; findings return to the same chat | Gemma 4 12B GGUF + mmproj |
-| **🗣️ Voice** | API-backed speech input and output (local voice runtime removed) | Gemini Voice API (adapter pending) |
+| **🗣️ Voice** | Local speech recognition and synthesis; optional hosted provider | faster-whisper + Piper (local default), optional Gemini Live API |
 | **🖐️ Minority Report UI** | Gesture-controlled window manipulation | MediaPipe Hand Tracking |
 | **👁️ Face Authentication** | Secure local biometric login | MediaPipe Face Landmarker |
 | **🌐 Browser Automation** | Primary model navigates, clicks, types, reads, and captures pages | Playwright + Chromium |
@@ -88,9 +88,8 @@ git clone --branch feature/ada-development-assistant-strip https://github.com/En
 # 2. Create the project-local Python environment, caches, and browser runtime
 powershell -ExecutionPolicy Bypass -File scripts\setup_local.ps1
 
-# 3. Configure Gemini Live API voice (optional)
-# Copy .env.example to .env and set GEMINI_API_KEY in .env
-# Keep .env private; it is excluded from Git.
+# 3. Local voice model files are downloaded separately by the project-local voice model script.
+# Gemini Live API is optional; only configure a key if you explicitly select that online provider.
 
 # 4. Setup frontend
 npm install
@@ -240,12 +239,17 @@ The index database is stored at `.ada/knowledge.sqlite3`; captured memories are 
 - [Gemma 4 12B Instruct GGUF + mmproj](https://huggingface.co/ggml-org/gemma-4-12B-it-GGUF)
 - [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) (in-process Python bindings)
 
-**Gemini Live API voice**
-- A.D.A streams microphone audio to Gemini Live API and plays its streamed native-audio responses. The backend uses the Google GenAI Python SDK; no local Whisper or TTS model is loaded.
-- Copy `.env.example` to `.env` in the A.D.A project root and set `GEMINI_API_KEY=your_key`. The backend loads this file automatically. Never commit `.env`.
-- The default voice model is `gemini-3.8-live`; override it with `GEMINI_LIVE_MODEL` if needed.
-- Enable **Gemini Live API Voice** in Settings and save. Start the voice session with the microphone control. Voice is API-backed and independent of local K2/Gemma inference.
-- Input audio is sent as 16 kHz PCM and output audio is played as 24 kHz PCM. Provider metadata is stored under `models/voice/gemini/`; no local voice weights are required.
+**Local voice (default)**
+- A.D.A's default voice provider is local Whisper speech recognition plus Piper speech synthesis.
+- Microphone audio is captured in the desktop UI and sent to the local backend as 16 kHz mono PCM. The backend segments utterances, transcribes locally, sends the transcript through the same K2 conversation/tool pipeline, and synthesizes the answer locally.
+- Whisper and Piper weights are stored beneath `models/voice/`; the downloader places Hugging Face caches and temporary files beneath `.ada/cache/`.
+- The local provider requires both model sets to be present. The model downloader is `scripts/ai/download_local_voice_models.py`; it is not run automatically by application startup or the general setup script.
+- The local voice adapter uses a local energy-based utterance detector and Whisper VAD. Local voice does not require a Gemini API key.
+
+**Optional Gemini Live API voice**
+- Gemini Live remains available only when explicitly selected in Settings. It streams microphone audio to Google's hosted service.
+- Copy `.env.example` to `.env` in the A.D.A project root and set `GEMINI_API_KEY=your_key`. Never commit `.env`.
+- The optional provider uses the configured Gemini Live model and is not required for offline operation.
 ### Option 1: The "Easy" Way (Single Terminal)
 The app is smart enough to start the backend for you.
 1. Open your terminal in the `ada_v2` folder.
@@ -333,7 +337,7 @@ ada_v2/
 │   ├── project_manager.py      # Project context management
 │   └── reference.jpg           # Your face photo (add this!)
 ├── docs/                       # JARVIS reference PDFs and Ada architecture notes
-├── models/                     # Project-local model registry, GGUF folders, Gemini voice provider metadata
+├── models/                     # Project-local model registry, GGUF folders, Whisper and Piper voice models
 │   ├── language/k2-horizon-7b/
 │   ├── vision/gemma-4-12b/
 │   └── voice/gemini/
@@ -358,7 +362,7 @@ ada_v2/
 |------------|---------|
 | **macOS & Windows** | Tested on macOS 14+ and Windows 10/11. Linux is untested. |
 | **Camera Required** | Face auth and gesture control need a working webcam. |
-| **Network Dependency** | K2/Gemma local inference and workspace tools can run offline after setup; browser tasks and the optional Gemini voice provider require network access. |
+| **Network Dependency** | K2/Gemma inference, local voice, and local knowledge run offline after model setup; browser tasks and the optional Gemini provider may require network access. |
 | **Single User** | Face auth recognizes one person (the `reference.jpg`). |
 
 ---
@@ -385,7 +389,7 @@ Contributions are welcome! Here's how:
 
 | Aspect | Implementation |
 |--------|----------------|
-| **API Keys** | No key is required for K2/Gemma inference or workspace tools. The optional Gemini Live voice provider requires a Google API key and streams audio to Google's service. |
+| **API Keys** | No key is required for K2/Gemma inference, local voice, or workspace tools. The optional Gemini Live provider requires a Google API key and streams audio to Google's service. |
 | **Face Data** | Processed locally, never uploaded. |
 | **No Cloud Storage** | All project data stays on your machine. |
 
