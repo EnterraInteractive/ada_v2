@@ -18,7 +18,7 @@ A.D.A v2 is a single Electron development assistant. Its primary conversation an
 |---------|-------------|------------|
 | **🧠 Local Development Model** | Coding, reasoning, tool use, and project work | K2-Horizon 7B GGUF + managed llama.cpp |
 | **👁️ Vision Delegation** | Primary model requests image inspection; findings return to the same chat | Gemma 4 12B GGUF + mmproj |
-| **🗣️ Local Voice** | CPU speech recognition and operating-system speech output | faster-whisper + PyAudio + pyttsx3 |
+| **🗣️ Voice** | API-backed speech input and output (local voice runtime removed) | Gemini Voice API (adapter pending) |
 | **🖐️ Minority Report UI** | Gesture-controlled window manipulation | MediaPipe Hand Tracking |
 | **👁️ Face Authentication** | Secure local biometric login | MediaPipe Face Landmarker |
 | **🌐 Browser Automation** | Primary model navigates, clicks, types, reads, and captures pages | Playwright + Chromium |
@@ -52,7 +52,7 @@ graph TB
         SERVER[server.py]
         ENGINE[assistant_engine.py]
         RUNTIME[model_runtime.py]
-        VOICE[voice_service.py]
+        VOICE[Gemini Voice API adapter]
         K2[K2-Horizon 7B GGUF]
         GEMMA[Gemma 4 12B Vision GGUF]
         WEB[Playwright Browser]
@@ -87,7 +87,6 @@ git clone https://github.com/EnterraInteractive/ada_v2.git && cd ada_v2
 
 # 2. Create Python environment (Python 3.11)
 conda create -n ada_v2 python=3.11 -y && conda activate ada_v2
-brew install portaudio  # macOS only (for PyAudio)
 pip install -r requirements.txt
 playwright install chromium
 
@@ -143,8 +142,6 @@ Once you have the basics above, continue here.
 
 **MacOS:**
 ```bash
-# Audio Input/Output support (PyAudio)
-brew install portaudio
 ```
 
 **Windows:**
@@ -236,13 +233,11 @@ The K2 profile defaults to a 65,536-token context and 32,768-token output, with 
 - [Gemma 4 12B Instruct GGUF + mmproj](https://huggingface.co/ggml-org/gemma-4-12B-it-GGUF)
 - [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) (in-process Python bindings)
 
-Voice recognition runs locally on the CPU using faster-whisper; speech output uses the operating system's installed voice. No API key is required.
-
-**Local voice setup**
-- The default voice model is Whisper Base English (base.en) running on CPU so it does not compete with K2/Gemma for VRAM.
-- The first time voice is started, faster-whisper downloads the selected model into its local cache.
-- Select Tiny, Base, Small, or Medium English in Settings to trade speed for transcription accuracy.
-- Speech output uses the installed Windows speech voice; the microphone and speaker remain part of the same A.D.A session.
+**Gemini API voice**
+- Voice is configured to use the Gemini API. No local Whisper model or operating-system TTS engine is installed or loaded.
+- The API credential is supplied through the `GEMINI_API_KEY` environment variable and must never be committed.
+- Voice is intentionally disabled until the Gemini API audio transport is connected. A.D.A will not silently fall back to local voice.
+- Provider metadata is stored under `models/voice/gemini/`; the API voice itself does not require local model weights.
 ### Option 1: The "Easy" Way (Single Terminal)
 The app is smart enough to start the backend for you.
 1. Open your terminal in the `ada_v2` folder.
@@ -322,15 +317,18 @@ npm run dev
 ```
 ada_v2/
 ├── backend/                    # Python server & AI logic
-│   ├── voice_service.py        # Local Whisper transcription + OS TTS
 │   ├── assistant_engine.py     # Local development assistant and tools
-│   ├── model_runtime.py        # Managed local GGUF inference process
+│   ├── model_runtime.py        # In-process llama-cpp-python GGUF inference
 │   ├── server.py               # FastAPI + Socket.IO server
 │   ├── web_agent.py            # Playwright browser automation
 │   ├── unreal_mcp.py           # Client for the existing Unreal Editor MCP server
 │   ├── authenticator.py        # MediaPipe face auth logic
 │   ├── project_manager.py      # Project context management
 │   └── reference.jpg           # Your face photo (add this!)
+├── models/                     # Project-local model registry, GGUF folders, Gemini voice provider metadata
+│   ├── language/k2-horizon-7b/
+│   ├── vision/gemma-4-12b/
+│   └── voice/gemini/
 ├── src/                        # React frontend
 │   ├── App.jsx                 # Main application component
 │   ├── components/             # UI components (9 files)
