@@ -310,7 +310,7 @@ latest_camera_image = None
 latest_image_name = None
 async def intercept_remember_command(prompt: str):
     value = (prompt or "").strip()
-    if not re.match(r"^remember that\\b", value, re.IGNORECASE):
+    if not re.match(r"^remember that\b", value, re.IGNORECASE):
         return None
     result = await knowledge_galaxy_remember({"text": value})
     if result.get("error"):
