@@ -115,8 +115,8 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  async function addNote(anchorIndex=null,newIndex=null){
    const response=await fetch('/graph?ts='+Date.now());if(!response.ok)throw new Error('Could not refresh graph data.');
    const next=await response.json();
-   const oldPositions=new Map(data.nodes.map(n=>[n.id,{x:n.x,y:n.y,z:n.z}]));
-   next.nodes.forEach(n=>{const old=oldPositions.get(n.id);if(old){n.x=old.x;n.y=old.y;n.z=old.z;}});
+   const oldPositions=new Map(data.nodes.map(n=>[n.path,{x:n.x,y:n.y,z:n.z}]));
+   next.nodes.forEach(n=>{const old=oldPositions.get(n.path);if(old){n.x=old.x;n.y=old.y;n.z=old.z;}});
    if(newIndex!==null&&anchorIndex!==null){const anchor=next.nodes.find(n=>n.id===anchorIndex);const born=next.nodes.find(n=>n.id===newIndex);if(anchor&&born){born.x=anchor.x||0;born.y=anchor.y||0;born.z=anchor.z||0;}}
    data=next;graph.graphData(data);$('count').textContent=data.nodes.length+' NOTES INDEXED · '+data.links.length+' CONNECTIONS';
    if(newIndex!==null){const node=data.nodes.find(n=>n.id===newIndex);if(node){node.__pulseUntil=Date.now()+2300;showNode(node,true);highlight([newIndex]);const timer=setInterval(()=>{graph.refresh();if(Date.now()>node.__pulseUntil)clearInterval(timer);},80);}}
