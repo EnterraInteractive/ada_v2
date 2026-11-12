@@ -317,12 +317,55 @@ def _galaxy_config():
     return config
 
 
+def _galaxy_read_full(source_id):
+    chunks = []
+    offset = 0
+    while True:
+        part = galaxy_knowledge_base.read_source(source_id, offset, 25000)
+        if not part:
+            break
+        chunks.append(part.get("content", ""))
+        next_offset = part.get("next_offset")
+        if next_offset is None:
+            break
+        offset = next_offset
+    return "".join(chunks)
+
+
 def _galaxy_graph_data():
     graph = galaxy_knowledge_base.graph()
-    for node in graph["nodes"]:
+    title_lookup = {}
+    note_bodies = {}
+    wiki_by_index = {}
+    for index, node in enumerate(graph["nodes"]):
         stem = Path(node.get("path", "")).stem
         stem = re.sub(r"^\d{8}_\d{6}_\d+_", "", stem)
         node["label"] = stem.replace("_", " ").replace("-", " ").strip() or node.get("label", "Untitled")
+        title_lookup.setdefault(node["label"].casefold(), []).append(index)
+        body = _galaxy_read_full(node["source_id"])
+        note_bodies[index] = body
+        wiki_by_index[index] = {
+            match.strip().split("|", 1)[0].strip().casefold()
+            for match in re.findall(r"\[\[([^\]]+)\]\]", body)
+        }
+
+    links = set()
+    for index, body in note_bodies.items():
+        for target in wiki_by_index[index]:
+            for other in title_lookup.get(target, []):
+                if other != index:
+                    links.add(tuple(sorted((index, other))))
+        for title, targets in title_lookup.items():
+            if len(title) >= 3 and re.search(r"(?<!\w)" + re.escape(title) + r"(?!\w)", body, re.IGNORECASE):
+                for other in targets:
+                    if other != index:
+                        links.add(tuple(sorted((index, other))))
+    indexes = list(range(len(graph["nodes"])))
+    for left in indexes:
+        for right in indexes[left + 1:]:
+            if wiki_by_index[left] and wiki_by_index[left].intersection(wiki_by_index[right]):
+                links.add((left, right))
+    graph["links"] = [{"source": left, "target": right} for left, right in sorted(links)]
     return graph
 
 
@@ -363,13 +406,13 @@ def _galaxy_chat_sync(question, session_id):
     for node in nodes:
         title_tokens = _galaxy_tokens(node.get("label", ""))
         excerpt_tokens = _galaxy_tokens(node.get("excerpt", ""))
-        full = galaxy_knowledge_base.read_source(node["source_id"], 0, 25000) or {}
-        content_tokens = _galaxy_tokens(full.get("content", ""))
+        content = _galaxy_read_full(node["source_id"])
+        content_tokens = _galaxy_tokens(content)
         overlap = len(meaningful & content_tokens)
         title_hits = len(meaningful & title_tokens)
         score = overlap + title_hits * 4
         if score:
-            scored.append((score, node, full.get("content", node.get("excerpt", ""))))
+            scored.append((score, node, content or node.get("excerpt", "")))
     scored.sort(key=lambda item: (item[0], item[1]["label"].casefold()), reverse=True)
     selected = scored[:6]
     if not selected or selected[0][0] < 1:
