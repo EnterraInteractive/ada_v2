@@ -52,6 +52,12 @@ The standalone viewer is served by root `server.py` on `127.0.0.1:4700`; Ada's b
 
 The 3D graph library is pinned to `3d-force-graph@1.73.3`. `npm ci` runs `scripts/stage_galaxy_vendor.mjs`, which downloads the pinned file once into `viewer/vendor/`, verifies its content, records its SHA-256 and source URL in `viewer/vendor/VERSIONS.txt`, and the viewer loads only that local copy. The browser has no CDN reference in `viewer/index.html`.
 
+## One-command project-local setup
+
+Run `scripts/setup_local.ps1` from the repository root on the target Windows machine. By default it installs the project-local Python environment and packages, downloads K2-Horizon and Gemma 4 GGUF/projector files, builds the pinned CUDA llama.cpp runtime, downloads both Whisper models and Piper, stages the pinned graph vendor, installs the local browser runtime, and installs the VoiceStudio app under `.ada/`. The models live under `models/`; application runtimes, downloads, caches, and VoiceStudio data live under `.ada/`; the Python virtual environment and Node dependencies remain inside the repository. CUDA Toolkit 13.x, NVIDIA drivers, Git, CMake, and uv are machine-level prerequisites.
+
+VoiceStudio's first launch remains a one-time interactive step: run `scripts/run_voicestudio.ps1`, install its local runtime into the project-local data directory, select VoxCPM2, and create the Jarvis voice profile using a recording you have permission to clone. The local Piper voice remains available if that step is skipped.
+
 ## Offline network drill
 
 The backend instruments socket connections and records the host, port, and calling code location to `.ada/network-audit.jsonl`. The viewer reports browser Resource Timing hosts after each turn.
