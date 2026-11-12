@@ -57,7 +57,7 @@ class KnowledgeBase:
         with self._connect() as db:
             db.execute("""
                 CREATE TABLE IF NOT EXISTS documents (
-                    id INTEGER PRIMARY KEY,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                     path TEXT NOT NULL UNIQUE,
                     title TEXT NOT NULL,
                     group_name TEXT NOT NULL,
@@ -173,7 +173,6 @@ class KnowledgeBase:
                     yield path
 
     def reindex(self) -> dict:
-        seen: set[str] = set()
         indexed = 0
         skipped = 0
         roots = []
@@ -191,21 +190,20 @@ class KnowledgeBase:
             for path in self._iter_source_files(root):
                 resolved = str(path.resolve())
                 root_seen.add(resolved)
-                seen.add(resolved)
                 if self._index_path(path) is None:
                     skipped += 1
                 else:
                     indexed += 1
 
             # Remove stale entries only for roots that were successfully scanned.
-            prefix = str(root.resolve())
+            resolved_root = root.resolve()
             with self._connect() as db:
-                existing_paths = [
-                    row["path"] for row in db.execute(
-                        "SELECT path FROM documents WHERE path = ? OR path LIKE ?",
-                        (prefix, prefix.rstrip("\\/") + os.sep + "%"),
-                    ).fetchall()
-                ]
+                all_paths = [row["path"] for row in db.execute("SELECT path FROM documents").fetchall()]
+                existing_paths = []
+                for stored_path in all_paths:
+                    candidate = Path(stored_path)
+                    if candidate == resolved_root or (resolved_root.is_dir() and candidate.is_relative_to(resolved_root)):
+                        existing_paths.append(stored_path)
                 stale = [path for path in existing_paths if path not in root_seen]
                 for stale_path in stale:
                     row = db.execute("SELECT id FROM documents WHERE path=?", (stale_path,)).fetchone()
