@@ -249,8 +249,8 @@ The index database is stored at `.ada/knowledge.sqlite3`; captured memories are 
 The app is smart enough to start the backend for you.
 1. Open your terminal in the `ada_v2` folder.
 2. Run:
-   ```bash
-   npm run dev
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts\run_ada.ps1
    ```
 4. The backend will start automatically in the background.
 
@@ -262,10 +262,9 @@ Use this if you want to see the Python logs (recommended for debugging).
 .venv\Scripts\python.exe backend\server.py
 ```
 
-**Terminal 2 (Frontend):**
-```bash
-# Environment doesn't matter here, but keep it simple
-npm run dev
+**Terminal 2 (Desktop UI):**
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\run_ada.ps1
 ```
 
 ---
