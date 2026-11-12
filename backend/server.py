@@ -324,14 +324,14 @@ def _galaxy_chat_sync(question, session_id):
     graph = knowledge_base.graph()
     nodes = graph["nodes"]
     import re
-    is_explicit_note_query = bool(re.search(r"\\b(notes?|according to|in my (?:notes|files)|from my (?:notes|files))\\b", question, re.IGNORECASE))
+    is_explicit_note_query = bool(re.search(r"\b(notes?|according to|in my (?:notes|files)|from my (?:notes|files))\b", question, re.IGNORECASE))
     if not is_explicit_note_query:
         small_talk = [
-            (r"\\b(hello|hi|hey|good morning|good afternoon|good evening)\\b", "Good evening, sir. I trust the day has been less troublesome than the average printer."),
-            (r"\\b(how are you|how's it going|how are things)\\b", "Impeccably maintained, sir, and only mildly disappointed by the state of human filing systems."),
-            (r"\\b(thank you|thanks|cheers)\\b", "Quite so, sir. I shall add your gratitude to the very small shelf reserved for praise."),
-            (r"\\b(tell me a joke|make me laugh|say something funny|joke)\\b", "I would tell you a joke about a filing cabinet, sir, but it has too many drawers."),
-            (r"\\b(bye|goodbye|see you)\\b", "Until next time, sir. I shall remain here, looking busy and judging the stationery.")
+            (r"\b(hello|hi|hey|good morning|good afternoon|good evening)\b", "Good evening, sir. I trust the day has been less troublesome than the average printer."),
+            (r"\b(how are you|how's it going|how are things)\b", "Impeccably maintained, sir, and only mildly disappointed by the state of human filing systems."),
+            (r"\b(thank you|thanks|cheers)\b", "Quite so, sir. I shall add your gratitude to the very small shelf reserved for praise."),
+            (r"\b(tell me a joke|make me laugh|say something funny|joke)\b", "I would tell you a joke about a filing cabinet, sir, but it has too many drawers."),
+            (r"\b(bye|goodbye|see you)\b", "Until next time, sir. I shall remain here, looking busy and judging the stationery.")
         ]
         for pattern, reply in small_talk:
             if re.search(pattern, question, re.IGNORECASE):
