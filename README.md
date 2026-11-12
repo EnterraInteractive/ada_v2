@@ -215,17 +215,19 @@ A.D.A's own backend listens on `127.0.0.1:8001`; port 8000 remains available for
 A.D.A loads llama.cpp directly into its own Python backend through `llama-cpp-python`. There is no `llama-server.exe`, model HTTP server, Ollama, Docker, or separate inference process.
 
 1. Install the NVIDIA CUDA 13.0 Toolkit for the RTX 5070 if it is not already installed.
-2. Install Python dependencies with `python -m pip install -r requirements.txt`; this selects the CUDA 13.0 `llama-cpp-python` wheel (0.3.36 or newer for current model and Gemma 4 MTMD support).
-3. Obtain the K2-Horizon 7B GGUF file and place it at `models/language/k2-horizon-7b/model.gguf`.
-4. Obtain the Gemma 4 12B Instruct GGUF and its matching multimodal projector, then place them at `models/vision/gemma-4-12b/model.gguf` and `models/vision/gemma-4-12b/mmproj.gguf`.
-5. Start A.D.A and open **Settings → Local Model Runtime**. The project-relative paths are preconfigured; use the file pickers only if you keep different filenames or locations.
-6. Confirm K2 is the primary model and Gemma 4 is the vision delegate, then save.
+2. Install the application dependencies with `python -m pip install -r requirements.txt`.
+3. Build the K2-compatible embedded inference runtime with `powershell -ExecutionPolicy Bypass -File scripts\\ai\\install_k2_runtime.ps1`. This builds `llama-cpp-python` against upstream llama.cpp b11454 with CUDA for the RTX 5070 (`sm_120`).
+4. Verify the native K2 loader with `python scripts\\ai\\verify_k2_runtime.py`.
+5. Obtain the K2-Horizon 7B GGUF file and place it at `models/language/k2-horizon-7b/model.gguf`.
+6. Obtain the Gemma 4 12B Instruct GGUF and its matching multimodal projector, then place them at `models/vision/gemma-4-12b/model.gguf` and `models/vision/gemma-4-12b/mmproj.gguf`.
+7. Start A.D.A and open **Settings → Local Model Runtime**. The project-relative paths are preconfigured; use the file pickers only if you keep different filenames or locations.
+8. Confirm K2 is the primary model and Gemma 4 is the vision delegate, then save.
 7. Confirm the Enterra Online workspace under **Development Workspace**; its default is `E:/Unreal Projects/EnterraOnline`.
 
 **Runtime behavior**
 - Only one model is loaded at a time. When K2 requests image analysis, A.D.A unloads K2, loads Gemma 4, passes the actual image bytes, returns Gemma's findings to the same conversation, and reloads K2 for the next response.
 
-The K2 profile defaults to a 65,536-token context and 32,768-token output, with Q8 KV cache kept in system RAM to protect the 12 GB GPU memory. This trades some speed for context capacity. The context size and GPU-layer settings can be adjusted in the model registry. Change `cache_type_k`, `cache_type_v`, or `no_kv_offload` in `settings.local.json` if you want to tune the KV cache placement.
+The K2 profile defaults to a 65,536-token context and 32,768-token output, with Q8 KV cache kept in system RAM to protect the 12 GB GPU memory. This trades some speed for context capacity. The context size and GPU-layer settings can be adjusted in the model registry. Change `cache_type_k`, `cache_type_v`, or `no_kv_offload` in `settings.local.json` if you want to tune the KV cache placement. The standard PyPI llama-cpp-python wheel does not include K2-Horizon support; use the project installer above. Run `python scripts\\ai\\verify_k2_runtime.py --full --tool-test` to test real GPU generation and parsed tool calls.
 
 **K2 GGUF tool-use caveat:** the upstream K2-Horizon model card documents the GGUF for llama.cpp inference but marks its agent/tool-use evaluation as not yet completed. A.D.A supplies the model's JSON tool-call template settings and a JSON/XML fallback parser; real Unreal Editor and browser tool execution still needs a local smoke test with your exact GGUF and installed `llama-cpp-python` version.
 - Model paths, context sizes, GPU layers, and model roles are configurable. Additional GGUF models can be added to the registry.
