@@ -3,16 +3,11 @@ uvicorn
 python-socketio
 python-multipart
 opencv-python
-pyaudio
 pillow
 # Browser Automation
 playwright
 # Face & Hand tracking
 mediapipe
-# Local voice: CPU speech recognition + OS speech synthesis
-faster-whisper
-webrtcvad-wheels
-pyttsx3
 # Unreal Editor integration (MCP client; connects to the existing Unreal MCP server)
 mcp>=1.10,<2
 
