@@ -77,6 +77,16 @@ if (-not $SkipNode) {
     if ($LASTEXITCODE -ne 0) { throw "npm ci failed." }
 }
 
+# Copy MediaPipe's WASM binaries into Vite's public folder so gesture tracking
+# does not fetch code from jsDelivr at runtime.
+$MediapipeSource = Join-Path $ProjectRoot "node_modules/@mediapipe/tasks-vision/wasm"
+$MediapipeDestination = Join-Path $ProjectRoot "public/mediapipe/wasm"
+if (-not (Test-Path $MediapipeSource)) {
+    throw "MediaPipe WASM files are missing. Run setup_local.ps1 without -SkipNode to install frontend dependencies."
+}
+New-Item -ItemType Directory -Force -Path $MediapipeDestination | Out-Null
+Copy-Item -Path (Join-Path $MediapipeSource "*") -Destination $MediapipeDestination -Recurse -Force
+
 Write-Host ""
 Write-Host "PASS: Python packages, caches, and browser runtime are project-local." -ForegroundColor Green
 Write-Host "Next: powershell -ExecutionPolicy Bypass -File scripts/ai/install_k2_runtime.ps1"
