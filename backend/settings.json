@@ -71,8 +71,9 @@
     },
     "voice": {
         "provider": "gemini_api",
-        "enabled": false,
-        "api_key_env": "GEMINI_API_KEY"
+        "enabled": true,
+        "api_key_env": "GEMINI_API_KEY",
+        "model": "gemini-3.8-live"
     },
     "unreal_mcp": {
         "enabled": true,
