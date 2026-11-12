@@ -409,10 +409,11 @@ def _galaxy_chat_sync(question, session_id):
         "answer": answer,
         "nodes": [int(node["id"]) for node in used],
         "note_count": len(nodes),
-        "used_notes": [{"id": node["id"], "source_id": node["source_id"], "label": node["label"]} for node in used],
+        "used_notes": [{"id": node["id"], "source_id": node["source_id"], "label": node["label"], "path": node["path"]} for node in used],
     }
 
 
+@app.post("/chat")
 @app.post("/knowledge/chat")
 async def knowledge_galaxy_chat(payload: dict):
     data = payload or {}
@@ -424,6 +425,7 @@ async def knowledge_galaxy_chat(payload: dict):
         return {"error": f"{type(exc).__name__}: {exc}"}
 
 
+@app.post("/remember")
 @app.post("/knowledge/remember")
 async def knowledge_galaxy_remember(payload: dict):
     data = payload or {}
