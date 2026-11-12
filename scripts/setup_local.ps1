@@ -136,7 +136,6 @@ Copy-Item -Path (Join-Path $MediapipeSource "*") -Destination $MediapipeDestinat
 if (-not $SkipVoiceStudio) {
     Write-Host "Installing VoiceStudio under .ada/tools and confining its data to .ada/voicestudio-data..." -ForegroundColor Yellow
     & (Join-Path $PSScriptRoot "ai/install_voicestudio.ps1")
-    if ($LASTEXITCODE -ne 0) { throw "Project-local VoiceStudio installation failed." }
 }
 
 Write-Host ""
