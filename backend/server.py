@@ -99,7 +99,7 @@ NOTES_DIR = Path(os.environ.get("ADA_NOTES_DIR", PROJECT_ROOT / "notes")).expand
 NOTES_DIR.mkdir(parents=True, exist_ok=True)
 GALAXY_CONFIG_FILE = PROJECT_ROOT / "config.json"
 if not GALAXY_CONFIG_FILE.exists():
-    GALAXY_CONFIG_FILE.write_text(json.dumps({"api_key": "PUT-YOUR-KEY-HERE", "model": "claude-opus-4-8"}, indent=2) + "\\n", encoding="utf-8")
+    GALAXY_CONFIG_FILE.write_text(json.dumps({"api_key": "PUT-YOUR-KEY-HERE", "model": "claude-opus-4-8"}, indent=2) + "\n", encoding="utf-8")
 GALAXY_SESSIONS = {}
 GALAXY_MAX_HISTORY = 8
 SETTINGS_FILE = str(SETTINGS_DIR / "settings.local.json")
