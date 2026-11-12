@@ -172,6 +172,14 @@ class LocalVoiceService:
 
             self._whisper_wake = await asyncio.to_thread(load)
 
+    async def warm_hearing_models(self) -> None:
+        """Load and warm both local Whisper models once for hands-free use."""
+        await self._load_whisper_only()
+        await self._load_wake_whisper()
+        silence = bytes(self.SAMPLE_RATE * 2)
+        await asyncio.to_thread(self._transcribe, silence, "command")
+        await asyncio.to_thread(self._transcribe, silence, "wake")
+
     async def start(self, sid: str, model_name: str | None = None) -> None:
         await self._load_models()
         self.sessions[sid] = LocalVoiceSession(sid=sid)
