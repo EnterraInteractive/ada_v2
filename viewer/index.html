@@ -307,8 +307,8 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
     graph.d3Force('charge').strength(-115);graph.d3Force('link').distance(75);graph.d3VelocityDecay(.28);graph.warmupTicks(80);graph.cooldownTime(18000);graph.graphData(data);graph.cameraPosition({x:0,y:0,z:650},{x:0,y:0,z:0},0);
     $('count').textContent=data.nodes.length+' NOTES INDEXED · '+data.links.length+' CONNECTIONS';
     setInterval(()=>graph.d3ReheatSimulation(),12000);
-    fetch('/brain/status').then(r=>r.ok?r.json():null).then(brain=>setBrainBadge(brain,false)).catch(()=>{});
-    fetch('/voice/status').then(r=>r.ok?r.json():null).then(voice=>{if(voice?.mode){activeVoiceMode=voice.mode;setVoiceBadge(activeVoiceMode);}}).catch(()=>{});
+    fetch('/brain').then(r=>r.ok?r.json():null).then(brain=>setBrainBadge(brain,false)).catch(()=>{});
+    fetch('/voice').then(r=>r.ok?r.json():null).then(voice=>{if(voice?.mode){activeVoiceMode=voice.mode;setVoiceBadge(activeVoiceMode);}}).catch(()=>{});
     if(!muted)speak('Hello, sir.');
     status('READY · NOTES GROUNDED · LOCAL VIEWER');
    }catch(e){error(e.message||'Could not initialise the galaxy.');}
