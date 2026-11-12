@@ -38,14 +38,15 @@ class LocalModelRuntime:
     def _file_exists(value: Any) -> bool:
         return bool(value and Path(str(value)).expanduser().is_file())
 
-    def _runtime_status(self) -> tuple[bool, str | None]:
+    def _runtime_status(self) -> tuple[bool, str | None, bool]:
         try:
-            importlib.import_module("llama_cpp")
-            self._runtime_error = None
-            return True, None
+            llama_cpp = importlib.import_module("llama_cpp")
+            gpu_offload = bool(llama_cpp.llama_supports_gpu_offload())
+            self._runtime_error = None if gpu_offload else "llama-cpp-python loaded, but this build has no GPU offload support."
+            return True, self._runtime_error, gpu_offload
         except Exception as exc:
             self._runtime_error = f"{type(exc).__name__}: {exc}"
-            return False, self._runtime_error
+            return False, self._runtime_error, False
 
     def status(self) -> dict[str, Any]:
         models = self.registry()
@@ -53,7 +54,7 @@ class LocalModelRuntime:
         vision_id = self.config.get("vision_model_id", "")
         primary = models.get(primary_id, {})
         vision = models.get(vision_id, {})
-        runtime_available, runtime_error = self._runtime_status()
+        runtime_available, runtime_error, gpu_offload_supported = self._runtime_status()
         primary_configured = runtime_available and self._file_exists(primary.get("model_path"))
         vision_configured = (
             runtime_available
@@ -63,6 +64,7 @@ class LocalModelRuntime:
         return {
             "backend": "in-process llama-cpp-python",
             "runtime_available": runtime_available,
+            "gpu_offload_supported": gpu_offload_supported,
             "runtime_error": runtime_error,
             "configured": primary_configured,
             "primary_configured": primary_configured,
