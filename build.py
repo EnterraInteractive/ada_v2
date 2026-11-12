@@ -39,7 +39,8 @@ def build_graph() -> dict:
         except OSError:
             continue
         relative = path.relative_to(NOTES_DIR)
-        label = path.stem.replace("_", " ").replace("-", " ").strip() or path.name
+        label_stem = re.sub(r"^\d{8}_\d{6}_\d+_", "", path.stem)
+        label = label_stem.replace("_", " ").replace("-", " ").strip() or path.name
         clean = re.sub(r"\s+", " ", body).strip()
         excerpt = clean[:700] + ("…" if len(clean) > 700 else "")
         group = relative.parent.as_posix() if relative.parent.as_posix() != "." else "notes"
