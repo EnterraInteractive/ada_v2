@@ -55,7 +55,7 @@ class VoiceStudioClient:
             return
         self._request("/health", timeout=1.0)
         profiles_payload = json.loads(self._request("/profiles").decode("utf-8"))
-        profiles = profiles_payload if isinstance(profiles_payload, list) else profiles_payload.get("profiles", [])
+        profiles = profiles_payload if isinstance(profiles_payload, list) else profiles_payload.get("profiles", profiles_payload.get("items", []))
         selected = next(
             (item for item in profiles if str(item.get("name", "")).casefold() == self.profile_name.casefold()),
             None,
@@ -71,6 +71,16 @@ class VoiceStudioClient:
             "model_id": self.model_id,
         })
         self._selected = True
+
+    def set_profile(self, profile_name: str) -> None:
+        name = (profile_name or "").strip()
+        if not name:
+            raise ValueError("Voice profile name cannot be empty.")
+        self.profile_name = name
+        self.profile_id = None
+        self._selected = False
+        self._warmed = False
+        self._last_warm = 0.0
 
     def _wav_to_pcm(self, wav_bytes: bytes, target_rate: int = 24000) -> bytes:
         import io
@@ -126,7 +136,13 @@ class VoiceStudioClient:
             self._warmed = True
             self._last_warm = time.monotonic()
 
-        audio = self._render_wav(text)
+        try:
+            audio = self._render_wav(text)
+        except VoiceStudioError:
+            # VoiceStudio may have restarted and lost its selected engine/profile.
+            self._selected = False
+            self._select()
+            audio = self._render_wav(text)
         temporary = cached.with_suffix(".wav.tmp")
         temporary.write_bytes(audio)
         temporary.replace(cached)
