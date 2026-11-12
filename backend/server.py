@@ -489,6 +489,38 @@ async def knowledge_galaxy_chat(payload: dict):
         return {"error": f"{type(exc).__name__}: {exc}"}
 
 
+@app.post("/hear")
+async def knowledge_galaxy_hear(payload: dict):
+    """Transcribe a locally captured 16 kHz mono PCM utterance with Whisper."""
+    data = payload or {}
+    encoded = str(data.get("audio_pcm16") or "")
+    if not encoded or len(encoded) > 14_000_000:
+        return {"error": "Audio payload is empty or exceeds the 10 MB limit."}
+    try:
+        audio = base64.b64decode(encoded, validate=True)
+        if not audio or len(audio) % 2:
+            raise ValueError("Audio must be signed 16-bit mono PCM.")
+        if not local_voice_service:
+            raise RuntimeError("The local Whisper service is unavailable.")
+        await local_voice_service._load_models()
+        transcript = await asyncio.to_thread(local_voice_service._transcribe, audio)
+        if not transcript:
+            return {"ok": True, "transcript": "", "answer": "", "audio_pcm16": ""}
+        if not assistant_engine:
+            raise RuntimeError("A.D.A's local assistant engine is not initialized.")
+        answer = await assistant_engine.respond(transcript, session_id="knowledge-galaxy")
+        speech = await asyncio.to_thread(local_voice_service._synthesize, answer)
+        return {
+            "ok": True,
+            "transcript": transcript,
+            "answer": answer,
+            "audio_pcm16": base64.b64encode(speech).decode("ascii"),
+            "sample_rate": 24000,
+        }
+    except Exception as exc:
+        return {"error": f"{type(exc).__name__}: {exc}"}
+
+
 @app.post("/remember")
 @app.post("/galaxy/remember")
 @app.post("/knowledge/remember")
