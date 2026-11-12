@@ -218,6 +218,10 @@ export default function KnowledgeGraphWindow({ onClose }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [reindexing, setReindexing] = useState(false);
+    const [fullSource, setFullSource] = useState(null);
+    const [readingSource, setReadingSource] = useState(false);
+
+    useEffect(() => { setFullSource(null); }, [selectedNode?.source_id]);
 
     const loadGraph = useCallback(async () => {
         setLoading(true);
@@ -257,6 +261,29 @@ export default function KnowledgeGraphWindow({ onClose }) {
             }
         } catch (err) {
             setError(err.message || 'Knowledge search failed.');
+        }
+    };
+
+    const loadSourceChunk = async () => {
+        if (!selectedNode) return;
+        setReadingSource(true);
+        setError('');
+        try {
+            const offset = fullSource?.next_offset ?? 0;
+            const response = await fetch(
+                API_ROOT + '/knowledge/source/' + selectedNode.source_id + '?offset=' + offset + '&limit=25000'
+            );
+            if (!response.ok) throw new Error('Source read failed (' + response.status + ').');
+            const data = await response.json();
+            if (!data.ok) throw new Error(data.error || 'Source was not found.');
+            setFullSource(current => current && current.id === data.id
+                ? { ...data, content: current.content + data.content }
+                : data
+            );
+        } catch (err) {
+            setError(err.message || 'Could not read the selected source.');
+        } finally {
+            setReadingSource(false);
         }
     };
 
@@ -317,7 +344,21 @@ export default function KnowledgeGraphWindow({ onClose }) {
                         <>
                             <div className="mb-2 text-[10px] font-mono text-cyan-700">[K{selectedNode.source_id}] · {selectedNode.group}</div>
                             <h2 className="mb-4 text-base font-semibold text-cyan-100">{selectedNode.label}</h2>
-                            <p className="mb-5 flex-1 overflow-y-auto whitespace-pre-wrap text-xs leading-6 text-cyan-200/80">{selectedNode.excerpt}</p>
+                            <div className="mb-3 flex items-center justify-between gap-2">
+                                <span className="text-[9px] text-cyan-700">
+                                    {fullSource ? (fullSource.content.length + ' / ' + fullSource.total_chars + ' chars') : 'Source excerpt'}
+                                </span>
+                                <button
+                                    onClick={loadSourceChunk}
+                                    disabled={readingSource || (fullSource && fullSource.next_offset === null)}
+                                    className="rounded-md border border-cyan-800 px-2 py-1 text-[9px] text-cyan-300 hover:border-cyan-400 disabled:opacity-40"
+                                >
+                                    {readingSource ? 'READING…' : fullSource ? (fullSource.next_offset === null ? 'FULL SOURCE LOADED' : 'LOAD NEXT CHUNK') : 'READ FULL SOURCE'}
+                                </button>
+                            </div>
+                            <pre className="mb-4 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words text-[11px] leading-5 text-cyan-200/80">
+                                {fullSource?.content || selectedNode.excerpt}
+                            </pre>
                             <div className="border-t border-cyan-900/60 pt-3 text-[10px] leading-5 text-cyan-800 break-all">{selectedNode.path}</div>
                         </>
                     ) : (
