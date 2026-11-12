@@ -114,6 +114,7 @@ DEFAULT_SETTINGS = {
         "browser_close": True,
         "search_project": False,
         "search_knowledge": False,
+        "read_knowledge_source": False,
         "remember": False,
         "run_terminal_command": True,
         "analyze_image": False,
@@ -285,6 +286,14 @@ async def knowledge_graph():
 async def knowledge_search(q: str, limit: int = 6):
     results = await asyncio.to_thread(knowledge_base.search, q, limit)
     return {"sources": results}
+
+
+@app.get("/knowledge/source/{source_id}")
+async def knowledge_source(source_id: int, offset: int = 0, limit: int = 18000):
+    source = await asyncio.to_thread(knowledge_base.read_source, source_id, offset, limit)
+    if not source:
+        return {"ok": False, "error": f"Knowledge source K{source_id} was not found."}
+    return {"ok": True, **source}
 
 
 @app.post("/knowledge/reindex")
