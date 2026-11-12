@@ -46,7 +46,7 @@ const SettingsWindow = ({
     const [workspacePath, setWorkspacePath] = useState('');
     const [modelRuntime, setModelRuntime] = useState({ primary_model_id: '', vision_model_id: '', models: [] });
     const [modelRuntimeStatus, setModelRuntimeStatus] = useState({ runtime_available: false, runtime_error: '' });
-    const [voiceSettings, setVoiceSettings] = useState({ model_size: 'base.en', vad_aggressiveness: 2 });
+    const [voiceSettings, setVoiceSettings] = useState({ provider: 'gemini_api', enabled: false, api_key_env: 'GEMINI_API_KEY' });
     const [unrealMcp, setUnrealMcp] = useState({ enabled: true, url: 'http://127.0.0.1:8000/mcp' });
     const [unrealMcpStatus, setUnrealMcpStatus] = useState({ connected: false, tool_count: 0 });
 
@@ -206,7 +206,7 @@ const SettingsWindow = ({
 
             <div className="mb-4 rounded border border-gray-800 bg-gray-950/50 p-3">
                 <h3 className="text-cyan-400 font-bold mb-1 text-xs uppercase tracking-wider opacity-80">Speech Output</h3>
-                <p className="text-[10px] text-gray-500">Local speech uses the current Windows default playback device and installed system voice.</p>
+                <p className="text-[10px] text-gray-500">Gemini API voice is the selected provider. Voice runs remotely; no local speech model is loaded. The API adapter must be configured before voice can be enabled.</p>
             </div>
 
             {/* Webcam Section */}
