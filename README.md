@@ -226,7 +226,7 @@ A.D.A loads llama.cpp directly into its own Python backend through `llama-cpp-py
 
 The K2 profile defaults to a 65,536-token context and 32,768-token output, with Q8 KV cache kept in system RAM to protect the 12 GB GPU memory. This trades some speed for context capacity. The context size and GPU-layer settings can be adjusted in the model registry. Change `cache_type_k`, `cache_type_v`, or `no_kv_offload` in `settings.local.json` if you want to tune the KV cache placement.
 
-**K2 GGUF tool-use caveat:** the upstream K2-Horizon model card documents the GGUF for llama.cpp inference but marks its agent/tool-use evaluation as not yet completed. A.D.A supplies the model's JSON tool-call template settings and a JSON/XML fallback parser; real Unreal Editor and browser tool execution still needs a local smoke test with your exact GGUF and llama.cpp build.
+**K2 GGUF tool-use caveat:** the upstream K2-Horizon model card documents the GGUF for llama.cpp inference but marks its agent/tool-use evaluation as not yet completed. A.D.A supplies the model's JSON tool-call template settings and a JSON/XML fallback parser; real Unreal Editor and browser tool execution still needs a local smoke test with your exact GGUF and installed `llama-cpp-python` version.
 - Model paths, context sizes, GPU layers, and model roles are configurable. Additional GGUF models can be added to the registry.
 - The active model and runtime readiness are shown in the A.D.A status bar.
 - Use a Q4 quantization as a practical starting point on a 12 GB GPU. The default Gemma context is deliberately conservative (8K) and can be adjusted in Settings. Start with Q4_K_M on the 12 GB GPU; use Q4_0 if you need more VRAM headroom. The BF16 vision projector is about 175 MB.
