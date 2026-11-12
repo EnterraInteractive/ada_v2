@@ -318,20 +318,20 @@ async def intercept_voice_command(prompt: str):
     global ACTIVE_VOICE
     value = (prompt or "").strip()
     folded = value.casefold()
-    if re.search(r"\\b(which|what) voice (are you using|is active)\\b", folded):
+    if re.search(r"\b(which|what) voice (are you using|is active)\b", folded):
         state = voice_status()
         return f"Using the {state['provider']} voice, {state['profile']}, sir."
-    if re.search(r"\\b(use|switch to) (your )?(local|cloned) voice\\b", folded):
+    if re.search(r"\b(use|switch to) (your )?(local|cloned) voice\b", folded):
         SETTINGS.setdefault("voice_studio", {})["enabled"] = True
         local_voice_service.tts_callback = voice_studio_service.synthesize_pcm16
         return f"Certainly, sir. The cloned {ACTIVE_VOICE} voice is selected."
-    if re.search(r"\\b(use|switch to) (the )?(piper|fallback) voice\\b", folded):
+    if re.search(r"\b(use|switch to) (the )?(piper|fallback) voice\b", folded):
         SETTINGS.setdefault("voice_studio", {})["enabled"] = False
         local_voice_service.tts_callback = None
         return "The local Piper voice is now selected, sir."
-    if re.search(r"\\b(use|switch to) (the )?browser voice\\b", folded):
+    if re.search(r"\b(use|switch to) (the )?browser voice\b", folded):
         return "Browser speech is disabled in this offline build, sir; I shall use the local voice engines."
-    match = re.search(r"\\bswitch to voice (.+)$", value, re.IGNORECASE)
+    match = re.search(r"\bswitch to voice (.+)$", value, re.IGNORECASE)
     if match:
         profile = match.group(1).strip().strip('". ')
         try:
