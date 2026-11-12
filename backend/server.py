@@ -207,8 +207,8 @@ def load_settings():
                             SETTINGS["voice"]["wake_model_path"] = "models/voice/whisper-small"
                         if SETTINGS["voice"].get("whisper_model_path") == "models/voice/whisper-small":
                             SETTINGS["voice"]["whisper_model_path"] = "models/voice/whisper-large-v3-turbo"
-                        if SETTINGS["voice"].get("provider") not in {"local", "gemini_api"}:
-                            SETTINGS["voice"]["provider"] = "local"
+                        # This distribution is offline-first: cloud voice providers are not selectable.
+                        SETTINGS["voice"]["provider"] = "local"
                     else:
                         SETTINGS[k] = v
             if not SETTINGS.get("workspace_path") and Path("E:/Unreal Projects/EnterraOnline").is_dir():
@@ -399,11 +399,9 @@ local_voice_service = LocalVoiceService(
 
 def get_voice_service():
     provider = SETTINGS.get("voice", {}).get("provider", "local")
-    if provider == "local":
-        return local_voice_service
-    if provider == "gemini_api":
-        return gemini_voice_service
-    raise RuntimeError(f"Unsupported A.D.A voice provider: {provider}")
+    if provider != "local":
+        raise RuntimeError("Cloud voice providers are disabled in this offline A.D.A build.")
+    return local_voice_service
 pending_tool_confirmations = {}
 
 def get_latest_image(source='latest'):
