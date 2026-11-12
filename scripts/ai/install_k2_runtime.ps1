@@ -43,11 +43,15 @@ if (-not (Test-Path (Join-Path $SourceRoot "pyproject.toml"))) {
     Move-Item $Extracted $SourceRoot
 }
 
-if (-not (Test-Path (Join-Path $VendorRoot "CMakeLists.txt")) -or $ForceRebuild) {
+$PinnedMarker = Join-Path $VendorRoot ".ada-k2-b11454"
+if (-not (Test-Path $PinnedMarker) -or $ForceRebuild) {
+    # The PyPI source archive includes an older llama.cpp tree. Always replace it;
+    # merely checking for CMakeLists.txt would leave the incompatible source in place.
     if (Test-Path $VendorRoot) { Remove-Item -Recurse -Force $VendorRoot }
     New-Item -ItemType Directory -Force -Path (Split-Path $VendorRoot -Parent) | Out-Null
     & git clone --depth 1 --branch b11454 https://github.com/ggml-org/llama.cpp.git $VendorRoot
     if ($LASTEXITCODE -ne 0) { throw "Could not fetch llama.cpp b11454 (K2-Horizon architecture and chat/tool support)." }
+    Set-Content -Path $PinnedMarker -Value "ggml-org/llama.cpp b11454" -Encoding ASCII
 }
 $LlamaCommit = (& git -C $VendorRoot rev-parse HEAD).Trim()
 if (-not $LlamaCommit) { throw "Could not identify the llama.cpp source revision." }
