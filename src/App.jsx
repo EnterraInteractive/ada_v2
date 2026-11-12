@@ -119,6 +119,16 @@ function App() {
     const analyserRef = useRef(null);
     const sourceRef = useRef(null);
     const animationFrameRef = useRef(null);
+    // Gemini Live API audio capture and playback (no local speech model).
+    const voiceStreamRef = useRef(null);
+    const voiceContextRef = useRef(null);
+    const voiceSourceRef = useRef(null);
+    const voiceProcessorRef = useRef(null);
+    const voiceMuteGainRef = useRef(null);
+    const voiceMutedRef = useRef(true);
+    const playbackContextRef = useRef(null);
+    const playbackTimeRef = useRef(0);
+    const playbackSourcesRef = useRef(new Set());
 
     // Video Refs
     const videoRef = useRef(null);
@@ -314,6 +324,38 @@ function App() {
         socket.on('audio_data', (data) => {
             setAiAudioData(data.data);
         });
+        socket.on('voice_ready', async () => {
+            setIsConnected(true);
+            setIsMuted(false);
+            voiceMutedRef.current = false;
+            setStatus('Gemini Voice Connected');
+            addMessage('System', 'Gemini voice connected.');
+            try {
+                await startVoiceCapture();
+            } catch (err) {
+                addMessage('System', `Microphone error: ${err.message}`);
+                socket.emit('stop_audio');
+                setIsConnected(false);
+            }
+        });
+        socket.on('voice_audio', (data) => playVoiceAudio(data));
+        socket.on('voice_interrupted', () => stopVoicePlayback());
+        socket.on('voice_closed', () => {
+            stopVoiceCapture();
+            stopVoicePlayback();
+            setIsConnected(false);
+            setIsMuted(true);
+            voiceMutedRef.current = true;
+            setStatus('Connected');
+        });
+        socket.on('voice_error', (data) => {
+            addMessage('System', `Gemini voice error: ${data.message || 'Unknown error'}`);
+            stopVoiceCapture();
+            setIsConnected(false);
+            setIsMuted(true);
+            voiceMutedRef.current = true;
+            setStatus('Connected');
+        });
         socket.on('auth_status', (data) => {
             console.log("Auth Status:", data);
             setIsAuthenticated(data.authenticated);
@@ -493,12 +535,19 @@ function App() {
             socket.off('assistant_status');
             socket.off('workspace_status');
             socket.off('audio_data');
+            socket.off('voice_ready');
+            socket.off('voice_audio');
+            socket.off('voice_interrupted');
+            socket.off('voice_closed');
+            socket.off('voice_error');
             socket.off('browser_frame');
             socket.off('transcription');
             socket.off('tool_confirmation_request');
             socket.off('error');
 
             stopMicVisualizer();
+            stopVoiceCapture();
+            stopVoicePlayback();
             stopVideo();
         };
     }, []);
@@ -935,16 +984,135 @@ function App() {
         setMessages(prev => [...prev, { sender, text, time: new Date().toLocaleTimeString() }]);
     };
 
+    const stopVoiceCapture = () => {
+        if (voiceProcessorRef.current) {
+            voiceProcessorRef.current.onaudioprocess = null;
+            voiceProcessorRef.current.disconnect();
+            voiceProcessorRef.current = null;
+        }
+        if (voiceSourceRef.current) {
+            voiceSourceRef.current.disconnect();
+            voiceSourceRef.current = null;
+        }
+        if (voiceMuteGainRef.current) {
+            voiceMuteGainRef.current.disconnect();
+            voiceMuteGainRef.current = null;
+        }
+        if (voiceStreamRef.current) {
+            voiceStreamRef.current.getTracks().forEach(track => track.stop());
+            voiceStreamRef.current = null;
+        }
+        if (voiceContextRef.current) {
+            voiceContextRef.current.close().catch(() => {});
+            voiceContextRef.current = null;
+        }
+    };
+
+    const startVoiceCapture = async () => {
+        stopVoiceCapture();
+        const constraints = {
+            audio: selectedMicId
+                ? { deviceId: { exact: selectedMicId }, channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                : { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        voiceStreamRef.current = stream;
+        let context;
+        try {
+            context = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        } catch {
+            context = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        voiceContextRef.current = context;
+        await context.resume();
+        const source = context.createMediaStreamSource(stream);
+        const processor = context.createScriptProcessor(2048, 1, 1);
+        const muteGain = context.createGain();
+        muteGain.gain.value = 0;
+        voiceSourceRef.current = source;
+        voiceProcessorRef.current = processor;
+        voiceMuteGainRef.current = muteGain;
+
+        processor.onaudioprocess = (event) => {
+            if (voiceMutedRef.current || !socket.connected) return;
+            const input = event.inputBuffer.getChannelData(0);
+            const ratio = context.sampleRate / 16000;
+            const outputLength = Math.floor(input.length / ratio);
+            if (!outputLength) return;
+            const pcm = new Int16Array(outputLength);
+            for (let i = 0; i < outputLength; i++) {
+                const position = i * ratio;
+                const left = Math.floor(position);
+                const right = Math.min(left + 1, input.length - 1);
+                const fraction = position - left;
+                const sample = input[left] * (1 - fraction) + input[right] * fraction;
+                const clipped = Math.max(-1, Math.min(1, sample));
+                pcm[i] = clipped < 0 ? clipped * 32768 : clipped * 32767;
+            }
+            socket.emit('voice_audio_chunk', pcm.buffer);
+        };
+        source.connect(processor);
+        processor.connect(muteGain);
+        muteGain.connect(context.destination);
+    };
+
+    const stopVoicePlayback = () => {
+        playbackSourcesRef.current.forEach(source => {
+            try { source.stop(); } catch {}
+        });
+        playbackSourcesRef.current.clear();
+        if (playbackContextRef.current) {
+            playbackTimeRef.current = playbackContextRef.current.currentTime;
+        }
+    };
+
+    const playVoiceAudio = async (data) => {
+        if (!data?.audio) return;
+        let bytes;
+        if (data.audio instanceof ArrayBuffer) {
+            bytes = new Uint8Array(data.audio);
+        } else if (ArrayBuffer.isView(data.audio)) {
+            bytes = new Uint8Array(data.audio.buffer, data.audio.byteOffset, data.audio.byteLength);
+        } else if (Array.isArray(data.audio)) {
+            bytes = new Uint8Array(data.audio);
+        } else {
+            return;
+        }
+        const evenLength = bytes.byteLength - (bytes.byteLength % 2);
+        if (!evenLength) return;
+        const pcm = new Int16Array(bytes.buffer, bytes.byteOffset, evenLength / 2);
+        if (!playbackContextRef.current) {
+            playbackContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+            if (selectedSpeakerId && playbackContextRef.current.setSinkId) {
+                try { await playbackContextRef.current.setSinkId(selectedSpeakerId); } catch {}
+            }
+        }
+        const context = playbackContextRef.current;
+        await context.resume();
+        const audioBuffer = context.createBuffer(1, pcm.length, data.sample_rate || 24000);
+        const channel = audioBuffer.getChannelData(0);
+        for (let i = 0; i < pcm.length; i++) channel[i] = pcm[i] / 32768;
+        const source = context.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(context.destination);
+        const startAt = Math.max(context.currentTime + 0.025, playbackTimeRef.current);
+        source.start(startAt);
+        playbackTimeRef.current = startAt + audioBuffer.duration;
+        playbackSourcesRef.current.add(source);
+        source.onended = () => playbackSourcesRef.current.delete(source);
+    };
+
     const togglePower = () => {
         if (isConnected) {
+            voiceMutedRef.current = true;
             socket.emit('stop_audio');
+            stopVoiceCapture();
+            stopVoicePlayback();
             setIsConnected(false);
-            setIsMuted(false); // Reset mute state
+            setIsMuted(true);
         } else {
-            const index = micDevices.findIndex(d => d.deviceId === selectedMicId);
-            socket.emit('start_audio', { device_index: index >= 0 ? index : null, device_name: index >= 0 ? micDevices[index].label : null });
-            setIsConnected(true);
-            setIsMuted(false); // Start unmuted
+            setStatus('Connecting Gemini Voice...');
+            socket.emit('start_audio', { device_name: micDevices.find(d => d.deviceId === selectedMicId)?.label || null });
         }
     };
 
@@ -952,9 +1120,11 @@ function App() {
         if (!isConnected) return; // Can't mute if not connected
 
         if (isMuted) {
+            voiceMutedRef.current = false;
             socket.emit('resume_audio');
             setIsMuted(false);
         } else {
+            voiceMutedRef.current = true;
             socket.emit('pause_audio');
             setIsMuted(true);
         }
