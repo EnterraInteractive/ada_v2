@@ -673,23 +673,27 @@ async def knowledge_galaxy_chat(payload: dict):
 
 @app.post("/speak")
 async def knowledge_galaxy_speak(payload: dict, response: Response):
-    """Synthesize speech with the project's local Piper voice."""
+    """Return sentence-sized local speech as WAV with an explicit voice receipt."""
     data = payload or {}
     text = str(data.get("text") or "").strip()
     if not text or len(text) > 12000:
+        response.status_code = 400
         return {"error": "Speech text must contain between 1 and 12,000 characters."}
     try:
-        provider = "piper"
+        provider = "local:piper"
         audio = None
-        if SETTINGS.get("voice_studio", {}).get("enabled", True):
+        force_piper = str(data.get("provider") or "").casefold() == "piper" or VOICE_MODE == "piper"
+        if force_piper or not SETTINGS.get("voice_studio", {}).get("enabled", True):
+            await local_voice_service._load_piper_only()
+            audio = await asyncio.to_thread(local_voice_service._synthesize, text)
+        else:
             try:
                 audio = await asyncio.to_thread(voice_studio_service.synthesize_pcm16, text)
                 provider = "local:" + str(SETTINGS.get("voice_studio", {}).get("profile", "Jarvis"))
             except Exception as studio_exc:
-                print(f"[VOICE] VoiceStudio unavailable; using local Piper fallback: {type(studio_exc).__name__}: {studio_exc}")
-        if audio is None:
-            await local_voice_service._load_piper_only()
-            audio = await asyncio.to_thread(local_voice_service._synthesize, text)
+                response.status_code = 503
+                return {"error": f"VoiceStudio unavailable; browser-local speech fallback may be used: {type(studio_exc).__name__}: {studio_exc}"}
+
         wav_buffer = io.BytesIO()
         with wave.open(wav_buffer, "wb") as wav_file:
             wav_file.setnchannels(1)
