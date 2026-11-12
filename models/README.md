@@ -18,14 +18,19 @@ override a registry entry's paths and inference parameters.
 
 ## Voice: Gemini API
 
-A.D.A voice is configured as an API provider, not as a local model. No Gemini
-voice weights belong here and voice does not consume local GPU VRAM. Provider
-metadata is kept in `voice/gemini/`; the API key must be supplied through the
-`GEMINI_API_KEY` environment variable and must never be committed.
+A.D.A voice uses Gemini Live API for speech input/output. Microphone PCM is
+streamed to Gemini and Gemini's generated audio is streamed back. No local
+speech model is loaded and no voice weights belong here.
 
-The Gemini API voice adapter is a separate integration from local model
-inference. Until that adapter is enabled and configured, voice remains disabled
-rather than silently falling back to local Whisper or operating-system TTS.
+Gemini is the speech interface, not the primary reasoning engine. Every spoken
+request is routed through the `ask_ada_local` function to A.D.A's local
+K2-Horizon assistant, which retains the normal reasoning, coding, and Unreal
+project-tool responsibilities. Gemini speaks the local assistant's response.
+
+Copy `.env.example` to `.env` in the project root and set
+`GEMINI_API_KEY`. The API key must never be committed. The selected Live API
+model defaults to `gemini-3.8-live` and can be overridden with
+`GEMINI_LIVE_MODEL`.
 
 ## Git behavior
 
