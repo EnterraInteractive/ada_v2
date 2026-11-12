@@ -50,7 +50,7 @@ The first three documents' text was available for review. The Opus 5.5 PDF is pr
 - Keep the system prompt stable and place changing retrieved content after it.
 - A cloud model is optional and explicitly selected; local mode must not need a cloud key.
 
-The PDFs use Ollama's OpenAI-compatible endpoint as an example. Ada already uses an embedded llama.cpp runtime, so Ollama is not a requirement. Keep K2-Horizon as the current primary assistant and Gemma 4 as the current vision delegate, while making model roles/selectable models extensible.
+The PDFs use Ollama's OpenAI-compatible endpoint as an example. Ada already uses an embedded llama.cpp runtime, so Ollama is not a requirement. Keep K2-Horizon as the default primary assistant and Gemma 4 as a vision delegate that can also be selected as the primary chat model. Keep model roles and selectable models extensible.
 
 ### C. Speech
 - Local speech-to-text using Whisper on Windows/Linux via faster-whisper.
@@ -182,3 +182,29 @@ The original prompt pack distinguishes its starter note assistant from the more 
 - Do not claim offline operation until the connection drill passes.
 - Do not claim the Opus 5.5 PDF was reviewed until its text is extracted.
 - Preserve user-local files, model weights, settings, and uncommitted changes.
+
+
+## Implementation progress on this branch
+
+The following work has now been committed to `feature/ada-development-assistant-strip`:
+
+- Restored all four reference PDFs under `docs/` on the active K2/Gemma branch.
+- Added this audit and implementation direction document.
+- Added `scripts/setup_local.ps1`: uses uv-managed Python 3.11 under `.ada/python`, creates `.venv`, installs Python packages there, downloads portable Node.js 24.20.0 under `.ada/tools`, and routes pip, Hugging Face, npm, temporary, Playwright, and browser data into `.ada/`.
+- Added `scripts/run_ada.ps1`; Electron now requires the project-local `.venv` instead of silently launching a global Python interpreter.
+- Routed backend caches and Playwright browser storage into the project-local `.ada/` directories, including manual backend launches.
+- Copied MediaPipe WASM assets from the installed package into the Vite public assets during setup, replaced remote noise textures with a local SVG, and removed the Google Fonts CDN import.
+- Added `backend/knowledge_base.py`: local SQLite FTS index for Markdown, text, and PDF sources; stable numeric source IDs; wikilink/title-reference graph edges; durable Markdown captures; and immediate indexing after “remember that …”.
+- Connected knowledge retrieval and explicit memory capture to the assistant engine, and exposed local graph/search/reindex/capture API routes.
+- Added the Knowledge Galaxy window to the existing Ada UI, including graph rotation/zoom, search, reindex, and source excerpt/path inspection.
+- Exposed Gemma 4 as both a chat-capable and vision-capable model in the registry. K2 remains the default primary model.
+
+### Not yet verified or implemented
+
+- These commits have **not** been run on the user's machine. Do not treat setup, build, model load, PDF extraction, or the knowledge graph as runtime-verified yet.
+- The Opus 5.5 PDF is present in `docs/`, and the new local indexer can extract PDFs with `pypdf`, but its contents were not available through the repository connector during this audit. Do not claim its unique recommendations have been reviewed.
+- Local Whisper STT, local TTS, wake word, barge-in, and one unified playback/mute controller are not implemented yet. Preserve the existing Gemini Live voice path until local voice is ready.
+- A full end-to-end preflight, outbound-connection audit, and strict local-only network drill remain outstanding.
+- Advanced integrations such as Gmail/Calendar and an agent inbox remain ideas, not implemented features.
+
+The next implementation work is local speech providers and full-chain preflight/offline verification. Before running setup or making further changes, reconcile this branch with the user's current local `ada_v2` working tree and preserve its existing model files and settings.
