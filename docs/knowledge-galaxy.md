@@ -62,7 +62,7 @@ VoiceStudio's first launch remains a one-time interactive step: run `scripts/run
 
 The backend instruments socket connections and records the host, port, and calling code location to `.ada/network-audit.jsonl`. The viewer reports browser Resource Timing hosts after each turn.
 
-With Ada and the Knowledge Galaxy viewer running, execute:
+After setup and the one-time VoiceStudio profile creation, launch the whole local stack with `scripts/run_offline_jarvis.ps1`. It starts VoiceStudio, A.D.A, and the Knowledge Galaxy viewer in separate local windows. To run the verification drill, keep those services running and execute:
 
 ```powershell
 .venv\Scripts\python.exe scripts\ai\drill_offline.py
