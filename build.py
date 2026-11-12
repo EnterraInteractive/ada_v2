@@ -23,7 +23,7 @@ def build_graph() -> dict:
     if NOTES_DIR.is_dir():
         for path in NOTES_DIR.rglob("*.md"):
             relative = path.relative_to(NOTES_DIR)
-            if any(part.startswith(".") or part in IGNORED for part in relative.parts):
+            if any(part in IGNORED for part in relative.parts):
                 continue
             if path.is_file():
                 files.append(path)
