@@ -12,6 +12,7 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 import ConfirmationPopup from './components/ConfirmationPopup';
 import AuthLock from './components/AuthLock';
 import SettingsWindow from './components/SettingsWindow';
+import KnowledgeGraphWindow from './components/KnowledgeGraphWindow';
 
 
 
@@ -50,6 +51,7 @@ function App() {
     // showMemoryPrompt removed - memory is now actively saved to project
     const [confirmationRequest, setConfirmationRequest] = useState(null); // { id, tool, args }
     const [showBrowserWindow, setShowBrowserWindow] = useState(false);
+    const [showKnowledgeWindow, setShowKnowledgeWindow] = useState(false);
 
     const [currentTime, setCurrentTime] = useState(new Date()); // Live clock
 
@@ -1575,6 +1577,11 @@ function App() {
                     />
                 )}
 
+                {/* Local Knowledge Graph */}
+                {showKnowledgeWindow && (
+                    <KnowledgeGraphWindow onClose={() => setShowKnowledgeWindow(false)} />
+                )}
+
                 {/* Browser Window Overlay */}
                 {showBrowserWindow && (
                     <div
@@ -1637,6 +1644,8 @@ function App() {
                         onToggleHand={() => setIsHandTrackingEnabled(!isHandTrackingEnabled)}
                         onToggleBrowser={() => setShowBrowserWindow(!showBrowserWindow)}
                         showBrowserWindow={showBrowserWindow}
+                        onToggleKnowledge={() => setShowKnowledgeWindow(!showKnowledgeWindow)}
+                        showKnowledgeWindow={showKnowledgeWindow}
                         activeDragElement={activeDragElement}
                         position={elementPositions.tools}
                         onMouseDown={(e) => handleMouseDown(e, 'tools')}
