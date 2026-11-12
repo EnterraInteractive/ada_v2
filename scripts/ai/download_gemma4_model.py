@@ -73,6 +73,12 @@ def main() -> int:
     os.environ["TEMP"] = str(CACHE_ROOT / "tmp")
     os.environ["TMP"] = str(CACHE_ROOT / "tmp")
 
+    model_target = DESTINATION / "model.gguf"
+    mmproj_target = DESTINATION / "mmproj.gguf"
+    if model_target.is_file() and mmproj_target.is_file() and not args.force:
+        print("Gemma 4 model and projector are already installed project-locally.")
+        return 0
+
     from huggingface_hub import HfApi, hf_hub_download
 
     token = os.environ.get("HF_TOKEN") or None
