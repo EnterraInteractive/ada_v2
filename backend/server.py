@@ -341,7 +341,7 @@ async def confirm_tool(sid, data):
 @sio.event
 async def shutdown(sid, data=None):
     """Gracefully shutdown the server when the application closes."""
-    global voice_service, authenticator
+    global authenticator
     
     print("[SERVER] ========================================")
     print("[SERVER] SHUTDOWN SIGNAL RECEIVED FROM FRONTEND")
