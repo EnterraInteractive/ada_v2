@@ -114,7 +114,7 @@ If you have never coded before, follow these steps first!
 
 **Step 2: Install Python 3.11 (The Runtime)**
 - Install Python 3.11 for Windows and ensure the Python Launcher (`py`) is available.
-- A.D.A creates its own `.venv` inside the repository; Python packages are installed there instead of a global or Conda environment.
+- A.D.A creates its own `.venv` inside the repository; Python packages are installed there instead of a global or Conda environment. The Python 3.11 interpreter itself, Node.js, Git, CMake, CUDA Toolkit, and NVIDIA driver remain machine-level prerequisites.
 
 **Step 3: Install Git (The Downloader)**
 - **Windows**: Download [Git for Windows](https://git-scm.com/download/win).
@@ -146,7 +146,10 @@ Once you have the basics above, continue here.
 ```
 
 **Windows:**
-- No additional system dependencies required!
+- Python 3.11 (the Python Launcher `py` is recommended).
+- Node.js 18+ and npm for the Electron/React interface.
+- Git, CMake, and CUDA Toolkit 13.x for the pinned RTX 5070 K2 runtime build.
+- A compatible NVIDIA driver for the installed CUDA toolkit.
 
 ### 2. Python Environment
 From the repository root, create the project-local `.venv`, install Python dependencies, and download Chromium into `.ada`:
@@ -155,7 +158,7 @@ From the repository root, create the project-local `.venv`, install Python depen
 powershell -ExecutionPolicy Bypass -File scripts\setup_local.ps1
 ```
 
-The script places Python packages in `.venv`, pip/Hugging Face caches in `.ada\cache`, and Playwright Chromium in `.ada\browsers`.
+The script places Python packages in `.venv`, pip/Hugging Face/npm/temporary caches in `.ada\cache`, and Playwright Chromium in `.ada\browsers`. Electron refuses to silently fall back to a global Python interpreter if `.venv` is missing.
 
 ### 3. Frontend Setup
 Requires **Node.js 18+** and **npm**. Download from [nodejs.org](https://nodejs.org/) if not installed.
