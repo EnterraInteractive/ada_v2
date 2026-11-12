@@ -248,6 +248,32 @@ class KnowledgeBase:
             for row in rows
         ]
 
+    def read_source(self, source_id: int, offset: int = 0, limit: int = 18000) -> dict | None:
+        self.ensure_indexed()
+        source_id = int(source_id)
+        offset = max(0, int(offset))
+        limit = max(1000, min(int(limit), 25000))
+        with self._connect() as db:
+            row = db.execute(
+                "SELECT id, path, title, group_name, content FROM documents WHERE id=?",
+                (source_id,),
+            ).fetchone()
+        if not row:
+            return None
+        content = str(row["content"])
+        end = min(len(content), offset + limit)
+        return {
+            "id": int(row["id"]),
+            "source": f"K{int(row['id'])}",
+            "title": row["title"],
+            "group": row["group_name"],
+            "path": row["path"],
+            "content": content[offset:end],
+            "total_chars": len(content),
+            "offset": offset,
+            "next_offset": end if end < len(content) else None,
+        }
+
     def remember(self, text: str) -> dict:
         self.ensure_indexed()
         body = (text or "").strip()
