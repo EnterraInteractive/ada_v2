@@ -218,7 +218,7 @@ A.D.A loads llama.cpp directly into its own Python backend through `llama-cpp-py
 2. Install the application dependencies with `python -m pip install -r requirements.txt`.
 3. Build the K2-compatible embedded inference runtime with `powershell -ExecutionPolicy Bypass -File scripts\ai\install_k2_runtime.ps1`. This builds `llama-cpp-python` against upstream llama.cpp b11454 with CUDA for the RTX 5070 (`sm_120`).
 4. Verify the native K2 loader with `python scripts\ai\verify_k2_runtime.py`.
-5. Download the default Q4_K_M K2-Horizon GGUF directly into the project with `python scripts\\ai\\download_k2_model.py`, or place your existing GGUF at `models/language/k2-horizon-7b/model.gguf`.
+5. Download the default Q4_K_M K2-Horizon GGUF directly into the project with `python scripts\ai\download_k2_model.py`, or place your existing GGUF at `models/language/k2-horizon-7b/model.gguf`.
 6. Obtain the Gemma 4 12B Instruct GGUF and its matching multimodal projector, then place them at `models/vision/gemma-4-12b/model.gguf` and `models/vision/gemma-4-12b/mmproj.gguf`.
 7. Start A.D.A and open **Settings → Local Model Runtime**. The project-relative paths are preconfigured; use the file pickers only if you keep different filenames or locations.
 8. Confirm K2 is the primary model and Gemma 4 is the vision delegate, then save.
