@@ -14,7 +14,7 @@ VIEWER_DIR = ROOT / "viewer"
 OUTPUT = VIEWER_DIR / "graph-data.js"
 WIKILINK = re.compile(r"\[\[([^\]]+)\]\]")
 WORD = re.compile(r"[\w'-]{2,}", re.UNICODE)
-IGNORED = {".git", ".ada", "node_modules", ".venv", "venv", "__pycache__"}
+IGNORED = {".git", ".hg", ".svn", ".idea", ".vscode", ".vs", ".ada", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "node_modules", ".venv", "venv", "env", "Binaries", "Intermediate", "DerivedDataCache", "Saved", "Build", "dist", "coverage", "Cache"}
 
 
 def build_graph() -> dict:
@@ -23,7 +23,7 @@ def build_graph() -> dict:
     if NOTES_DIR.is_dir():
         for path in NOTES_DIR.rglob("*.md"):
             relative = path.relative_to(NOTES_DIR)
-            if any(part in IGNORED for part in relative.parts):
+            if any(part in IGNORED or part.startswith(".") for part in relative.parts):
                 continue
             if path.is_file():
                 files.append(path)
