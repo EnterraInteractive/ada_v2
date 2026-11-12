@@ -122,3 +122,38 @@ def test_tool_confirmation_fails_closed_without_a_socket_session():
         confirmation_callback=confirm,
     )
     assert asyncio.run(engine._confirm(None, "run_terminal_command", {"command": "pwd"})) is False
+
+
+def test_knowledge_tools_are_registered():
+    names = {item["function"]["name"] for item in TOOLS}
+    assert {"search_knowledge", "remember"}.issubset(names)
+
+
+def test_explicit_remember_phrase_saves_without_model_interpretation():
+    import asyncio
+
+    class ProjectHistory:
+        def __init__(self):
+            self.entries = []
+
+        def log_chat(self, sender, text):
+            self.entries.append((sender, text))
+
+    class FakeKnowledge:
+        def __init__(self):
+            self.saved = []
+
+        def remember(self, text):
+            self.saved.append(text)
+            return {"title": "Alderlight Region", "source": "K17"}
+
+    history = ProjectHistory()
+    knowledge = FakeKnowledge()
+    engine = AssistantEngine(runtime=None, project_manager=history, knowledge=knowledge)
+
+    answer = asyncio.run(engine.respond("Remember that Alderlight is the first playable region."))
+
+    assert knowledge.saved == ["Alderlight is the first playable region."]
+    assert "[K17]" in answer
+    assert history.entries[0][0] == "User"
+    assert history.entries[1][0] == "ADA"
