@@ -335,8 +335,8 @@ function App() {
             setIsConnected(true);
             setIsMuted(false);
             voiceMutedRef.current = false;
-            setStatus('Gemini Voice Connected');
-            addMessage('System', 'Gemini voice connected.');
+            setStatus('Voice Connected');
+            addMessage('System', 'Voice connected.');
             try {
                 await startVoiceCapture();
             } catch (err) {
@@ -356,7 +356,7 @@ function App() {
             setStatus('Connected');
         });
         socket.on('voice_error', (data) => {
-            addMessage('System', `Gemini voice error: ${data.message || 'Unknown error'}`);
+            addMessage('System', `Voice error: ${data.message || 'Unknown error'}`);
             stopVoiceCapture();
             setIsConnected(false);
             setIsMuted(true);
@@ -1118,7 +1118,7 @@ function App() {
             setIsConnected(false);
             setIsMuted(true);
         } else {
-            setStatus('Connecting Gemini Voice...');
+            setStatus('Connecting Voice...');
             socket.emit('start_audio', { device_name: micDevices.find(d => d.deviceId === selectedMicId)?.label || null });
         }
     };
