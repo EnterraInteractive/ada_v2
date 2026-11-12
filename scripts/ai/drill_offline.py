@@ -140,15 +140,30 @@ def main() -> int:
             raise RuntimeError("Local /chat returned an empty answer.")
         print("CHAT:", answer)
 
+        speech_payload = {"text": answer}
         speech_request = urllib.request.Request(
             BACKEND + "/speak",
-            data=json.dumps({"text": answer}).encode("utf-8"),
+            data=json.dumps(speech_payload).encode("utf-8"),
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(speech_request, timeout=120) as response:
-            speech_wav = response.read()
-            voice_receipt = response.headers.get("X-Jarvis-Voice", "unknown")
+        try:
+            with urllib.request.urlopen(speech_request, timeout=120) as response:
+                speech_wav = response.read()
+                voice_receipt = response.headers.get("X-Jarvis-Voice", "unknown")
+        except urllib.error.HTTPError as exc:
+            if exc.code != 503:
+                raise
+            speech_payload["provider"] = "piper"
+            fallback_request = urllib.request.Request(
+                BACKEND + "/speak",
+                data=json.dumps(speech_payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(fallback_request, timeout=120) as response:
+                speech_wav = response.read()
+                voice_receipt = response.headers.get("X-Jarvis-Voice", "unknown")
         if len(speech_wav) < 44 or speech_wav[:4] != b"RIFF":
             raise RuntimeError("Local /speak did not return a valid audio/wav response.")
         print("VOICE:", voice_receipt)
