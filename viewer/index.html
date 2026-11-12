@@ -43,7 +43,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  const $ = id => document.getElementById(id);
  const sessionId = sessionStorage.getItem('ada-galaxy-session') || (crypto.randomUUID ? crypto.randomUUID() : 'galaxy-'+Date.now());
  sessionStorage.setItem('ada-galaxy-session',sessionId);
- let graph, data={nodes:[],links:[]}, selected=null, voiceOn=true, interacted=false, pendingSpeech='', busy=false, statusText='', lastBrainId=null, brainTimer=null;\n const muted=new URLSearchParams(location.search).get('mute')==='1';
+ let graph, data={nodes:[],links:[]}, selected=null, voiceOn=true, interacted=false, pendingSpeech='', busy=false, statusText='', lastBrainId=null, brainTimer=null, activeVoiceMode='local', browserSpeaking=false;\n const muted=new URLSearchParams(location.search).get('mute')==='1';
  const status = text => { statusText=text; $('status').textContent=text; };
  const error = text => { $('error').textContent=text; $('error').style.display='block'; };
  const clearError = () => $('error').style.display='none';
@@ -61,6 +61,28 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
    const source=playbackContext.createBufferSource();source.buffer=buffer;source.connect(playbackContext.destination);currentSource=source;
    return new Promise(resolve=>{source.onended=()=>{if(currentSource===source)currentSource=null;if(handsFree)status('● LISTENING · SAY “JARVIS” TO WAKE');resolve();};source.start();});
  }
+ async function speakBrowserLocal(text){
+   if(muted||!voiceOn)return true;
+   const synth=window.speechSynthesis;if(!synth)return false;
+   let voices=synth.getVoices();
+   if(!voices.length){await new Promise(resolve=>{synth.addEventListener('voiceschanged',resolve,{once:true});setTimeout(resolve,1200);});voices=synth.getVoices();}
+   const local=voices.filter(voice=>voice.localService&&/^en/i.test(voice.lang));
+   if(!local.length)return false;
+   const voice=local.find(item=>/^en-GB/i.test(item.lang))||local[0];
+   synth.cancel();browserSpeaking=true;
+   $('brainBadge').textContent='BRAIN '+(lastBrainId||'local')+' · VOICE browser';
+   $('brainBadge').classList.add('visible');if(brainTimer)clearTimeout(brainTimer);brainTimer=setTimeout(()=>$('brainBadge').classList.remove('visible'),5000);
+   status('● SPEAKING · LOCAL BROWSER VOICE');
+   try{
+     for(const chunk of speechChunks(text)){
+       await new Promise(resolve=>{
+         const utterance=new SpeechSynthesisUtterance(chunk);utterance.voice=voice;utterance.lang=voice.lang;utterance.rate=.94;utterance.pitch=.92;
+         utterance.onend=resolve;utterance.onerror=resolve;synth.speak(utterance);
+       });
+     }
+   }finally{browserSpeaking=false;if(handsFree)status('● LISTENING · SAY “JARVIS” TO WAKE');}
+   return true;
+ }
  function speechChunks(text,limit=170){
    const sentences=(text.match(/[^.!?]+[.!?]+|[^.!?]+$/g)||[text]).map(x=>x.trim()).filter(Boolean);
    const chunks=[];let current='';
@@ -76,6 +98,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  async function speak(text){
    if(muted||!voiceOn||!text)return;
    if(!interacted){pendingSpeech=text;return;}
+   if(activeVoiceMode==='browser'&&await speakBrowserLocal(text))return;
    try{
      const chunks=speechChunks(text);let pending=fetchSpeech(chunks[0]);
      for(let i=0;i<chunks.length;i++){
@@ -87,7 +110,10 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
        await playPcm(result.audio_pcm16,result.sample_rate||24000);
        pending=following;
      }
-   }catch(e){status('VOICE UNAVAILABLE · '+(e.message||'local voice failed'));}
+   }catch(e){
+     if(await speakBrowserLocal(text))return;
+     status('VOICE UNAVAILABLE · '+(e.message||'no local voice engine is ready'));
+   }
  } function interaction(){interacted=true;if(pendingSpeech){const p=pendingSpeech;pendingSpeech='';speak(p);}}
  function setBrainBadge(brain,force=false){
    if(!brain||!brain.model_id)return;
@@ -135,7 +161,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
       $('answer').textContent=reply;await speak(reply);
     }else{
       const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:text,session_id:sessionId})});const result=await r.json();if(result.error)throw new Error(result.error);
-      $('answer').textContent=result.answer||'';if(result.brain)setBrainBadge(result.brain);await speak(result.answer||'');
+      $('answer').textContent=result.answer||'';if(result.brain)setBrainBadge(result.brain);if(result.voice_mode)activeVoiceMode=result.voice_mode;await speak(result.answer||'');
       const ids=(result.nodes||[]).map(Number);
       if(ids.length>=4){highlight(ids);const top=data.nodes.find(n=>n.id===ids[0]);if(top)showNode(top,false);}
       else if(ids.length){const top=ids[0];const neighbors=data.links.filter(l=>Number(l.source?.id??l.source)===top||Number(l.target?.id??l.target)===top).map(l=>Number(l.source?.id??l.source)===top?(l.target?.id??l.target):(l.source?.id??l.source));highlight([top,...neighbors]);const node=data.nodes.find(n=>n.id===top);if(node)showNode(node,true);}
@@ -174,7 +200,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
    try{
      if(currentSource){
        const interruptText=await transcribeFrames(frames,'wake');
-       if(/\\b(stop|wait)\\b/i.test(interruptText)){try{currentSource.stop();}catch{}currentSource=null;status('SPEECH INTERRUPTED');}
+       if(/\\b(stop|wait)\\b/i.test(interruptText)){if(currentSource){try{currentSource.stop();}catch{}currentSource=null;}if(window.speechSynthesis)window.speechSynthesis.cancel();browserSpeaking=false;status('SPEECH INTERRUPTED');}
        return;
      }
      if(awaitingWakeCommand){
@@ -219,7 +245,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
    micInput.connect(micProcessor);micProcessor.connect(micContext.destination);
  }
  async function startMic(){
-   interaction();if(currentSource){try{currentSource.stop();}catch{}currentSource=null;}
+   interaction();if(currentSource){try{currentSource.stop();}catch{}currentSource=null;}if(browserSpeaking&&window.speechSynthesis){window.speechSynthesis.cancel();browserSpeaking=false;}
    if(recording){
      recording=false;$('mic').textContent='🎙';status('● TRANSCRIBING LOCALLY…');
      const frames=micFrames;micFrames=[];const sourceRate=micContext?.sampleRate||48000;await stopMicrophone();
@@ -243,7 +269,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  }
  $('ask').addEventListener('submit',e=>{e.preventDefault();ask();});
  $('mic').addEventListener('click',startMic);\n $('handsfree').addEventListener('click',toggleHandsFree);
- $('voiceToggle').addEventListener('click',()=>{interaction();voiceOn=!voiceOn;$('voiceToggle').textContent=voiceOn?'VOICE ON':'VOICE OFF';if(!voiceOn&&currentSource){try{currentSource.stop();}catch{}currentSource=null;}});
+ $('voiceToggle').addEventListener('click',()=>{interaction();voiceOn=!voiceOn;$('voiceToggle').textContent=voiceOn?'VOICE ON':'VOICE OFF';if(!voiceOn&&currentSource){try{currentSource.stop();}catch{}currentSource=null;}if(!voiceOn&&window.speechSynthesis){window.speechSynthesis.cancel();browserSpeaking=false;}});
  $('reindex').addEventListener('click',async()=>{interaction();status('● THINKING…');try{await addNote();}catch(e){error(e.message);}finally{status('READY · NOTES GROUNDED · LOCAL VIEWER');}});
  document.addEventListener('pointerdown',interaction,{once:true});
  async function boot(){
@@ -254,7 +280,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
     graph.d3Force('charge').strength(-115);graph.d3Force('link').distance(75);graph.d3VelocityDecay(.28);graph.warmupTicks(80);graph.cooldownTime(18000);graph.graphData(data);graph.cameraPosition({x:0,y:0,z:650},{x:0,y:0,z:0},0);
     $('count').textContent=data.nodes.length+' NOTES INDEXED · '+data.links.length+' CONNECTIONS';
     setInterval(()=>graph.d3ReheatSimulation(),12000);
-    fetch('/brain').then(r=>r.ok?r.json():null).then(brain=>setBrainBadge(brain,false)).catch(()=>{});\n    if(!muted)speak('Hello, sir.');
+    fetch('/brain').then(r=>r.ok?r.json():null).then(brain=>setBrainBadge(brain,false)).catch(()=>{});\n    fetch('/voice').then(r=>r.ok?r.json():null).then(voice=>{if(voice?.mode)activeVoiceMode=voice.mode;}).catch(()=>{});\n    if(!muted)speak('Hello, sir.');
     status('READY · NOTES GROUNDED · LOCAL VIEWER');
    }catch(e){error(e.message||'Could not initialise the galaxy.');}
  }
