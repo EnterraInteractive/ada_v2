@@ -224,7 +224,8 @@ The K2 profile defaults to a 65,536-token context and 32,768-token output, with 
 A.D.A indexes Markdown, text, and PDF references from the repository's `docs/` folder and the active workspace. The index uses local SQLite full-text search; PDF text is extracted locally with `pypdf`.
 
 - Open **Knowledge Galaxy** from the bottom tool bar to browse the interactive 3D-style source graph.
-- Search indexed notes and PDFs, select a node, and inspect its excerpt and original path.
+- Search indexed notes and PDFs, select a node, inspect its excerpt and original path, and load the complete source in bounded chunks.
+- A.D.A can also read a full indexed source by ID (for example, `[K12]`) when asked to review a reference document.
 - Ask A.D.A questions about indexed references; relevant answers include stable source IDs such as `[K12]`.
 - Say **"remember that …"** to save a durable Markdown capture. The capture is indexed immediately and can be retrieved in the next turn.
 - Use **Reindex** after adding or changing documents.
