@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import gc
 import importlib
+import json
 from pathlib import Path
 from typing import Any
 
@@ -29,11 +30,25 @@ class LocalModelRuntime:
         self._runtime_error: str | None = None
 
     def registry(self) -> dict[str, Any]:
-        return {
-            model["id"]: model
-            for model in self.config.get("models", [])
-            if isinstance(model, dict) and model.get("id")
-        }
+        # The project-local registry supplies installable model definitions.
+        # Per-machine settings may override paths or tuning without changing
+        # the shared registry file.
+        registry_path = self.project_root / "models" / "registry.json"
+        registered: dict[str, dict[str, Any]] = {}
+        if registry_path.is_file():
+            try:
+                registry_data = json.loads(registry_path.read_text(encoding="utf-8"))
+                for model in registry_data.get("models", []):
+                    if isinstance(model, dict) and model.get("id"):
+                        registered[model["id"]] = dict(model)
+            except (OSError, ValueError, TypeError):
+                pass
+
+        for model in self.config.get("models", []):
+            if isinstance(model, dict) and model.get("id"):
+                model_id = model["id"]
+                registered[model_id] = {**registered.get(model_id, {}), **model}
+        return registered
 
     def _resolve_path(self, value: Any) -> Path | None:
         if not value:
