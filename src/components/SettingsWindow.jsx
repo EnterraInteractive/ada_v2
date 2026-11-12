@@ -392,17 +392,10 @@ const SettingsWindow = ({
                     ))}
                 </div>
                 <div className="mt-4 rounded border border-cyan-900/60 bg-gray-950/70 p-3">
-                    <h4 className="text-[10px] text-cyan-400 uppercase tracking-wider mb-2">Local Voice</h4>
-                    <label className="block text-[9px] text-gray-500 mb-1">Whisper speech recognition model (CPU)</label>
-                    <select value={voiceSettings.model_size || 'base.en'}
-                        onChange={e => setVoiceSettings(prev => ({ ...prev, model_size: e.target.value }))}
-                        className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-xs text-cyan-100">
-                        <option value="tiny.en">Tiny English — fastest</option>
-                        <option value="base.en">Base English — balanced</option>
-                        <option value="small.en">Small English — higher accuracy</option>
-                        <option value="medium.en">Medium English — highest accuracy, slower</option>
-                    </select>
-                    <p className="text-[9px] text-gray-600 mt-2">Speech recognition runs locally on the CPU; speech output uses the operating system voice. The first start downloads the selected Whisper model.</p>
+                    <h4 className="text-[10px] text-cyan-400 uppercase tracking-wider mb-2">Gemini API Voice</h4>
+                    <p className="text-[10px] text-gray-400">Provider: Gemini API</p>
+                    <p className="text-[10px] text-gray-400">Credential: GEMINI_API_KEY environment variable</p>
+                    <p className="text-[9px] text-amber-400 mt-2">Remote voice transport is not connected yet. Local Whisper and operating-system speech fallback are disabled.</p>
                 </div>
 
                 <div className="flex gap-2 mt-3">
