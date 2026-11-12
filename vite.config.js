@@ -7,5 +7,7 @@ export default defineConfig({
     base: './', // Important for Electron
     server: {
         port: 5173,
+        // Never allow the project-root Anthropic credential file to be served.
+        fs: { deny: ['config.json', '**/config.json'] },
     }
 })
