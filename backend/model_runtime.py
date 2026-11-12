@@ -165,7 +165,8 @@ class LocalModelRuntime:
         requested_gpu_layers = int(model_config.get("gpu_layers", -1))
         if requested_gpu_layers != 0 and not llama_cpp.llama_supports_gpu_offload():
             raise ModelRuntimeError(
-                "This llama-cpp-python build has no GPU offload support. Install A.D.A's CUDA 13.0 wheel, "
+                "This llama-cpp-python build has no GPU offload support. Run "
+                "scripts/ai/install_k2_runtime.ps1 to build the pinned CUDA runtime, "
                 "or set GPU layers to 0 to explicitly use CPU inference."
             )
 
