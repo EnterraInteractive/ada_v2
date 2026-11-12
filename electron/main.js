@@ -65,12 +65,48 @@ function createWindow() {
 }
 
 function startPythonBackend() {
-    const scriptPath = path.join(__dirname, '../backend/server.py');
-    console.log(`Starting Python backend: ${scriptPath}`);
+    const projectRoot = path.resolve(__dirname, '..');
+    const scriptPath = path.join(projectRoot, 'backend', 'server.py');
+    const localPython = process.platform === 'win32'
+        ? path.join(projectRoot, '.venv', 'Scripts', 'python.exe')
+        : path.join(projectRoot, '.venv', 'bin', 'python');
+    const pythonExecutable = process.env.ADA_PYTHON || (
+        require('fs').existsSync(localPython) ? localPython : 'python'
+    );
 
-    // Assuming 'python' is in PATH. In prod, this would be the executable.
-    pythonProcess = spawn('python', [scriptPath], {
-        cwd: path.join(__dirname, '../backend'),
+    if (pythonExecutable === 'python') {
+        console.warn('[A.D.A] Project-local .venv was not found. Run scripts\\setup_local.ps1; using PATH python as a temporary fallback.');
+    }
+    console.log(`Starting Python backend: ${scriptPath}`);
+    console.log(`Python interpreter: ${pythonExecutable}`);
+
+    const localDataRoot = path.join(projectRoot, '.ada');
+    const cacheRoot = path.join(localDataRoot, 'cache');
+    const localEnv = {
+        ...process.env,
+        ADA_PROJECT_ROOT: projectRoot,
+        PYTHONUNBUFFERED: '1',
+        PYTHONPYCACHEPREFIX: path.join(cacheRoot, 'pycache'),
+        PIP_CACHE_DIR: path.join(cacheRoot, 'pip'),
+        HF_HOME: path.join(cacheRoot, 'huggingface'),
+        HUGGINGFACE_HUB_CACHE: path.join(cacheRoot, 'huggingface', 'hub'),
+        XDG_CACHE_HOME: path.join(cacheRoot, 'xdg'),
+        TORCH_HOME: path.join(cacheRoot, 'torch'),
+        PLAYWRIGHT_BROWSERS_PATH: path.join(localDataRoot, 'browsers'),
+        TEMP: path.join(cacheRoot, 'tmp'),
+        TMP: path.join(cacheRoot, 'tmp'),
+    };
+    for (const directory of [
+        localEnv.PYTHONPYCACHEPREFIX, localEnv.PIP_CACHE_DIR, localEnv.HF_HOME,
+        localEnv.XDG_CACHE_HOME, localEnv.TORCH_HOME, localEnv.PLAYWRIGHT_BROWSERS_PATH,
+        localEnv.TEMP,
+    ]) {
+        require('fs').mkdirSync(directory, { recursive: true });
+    }
+
+    pythonProcess = spawn(pythonExecutable, [scriptPath], {
+        cwd: projectRoot,
+        env: localEnv,
     });
 
     pythonProcess.stdout.on('data', (data) => {
