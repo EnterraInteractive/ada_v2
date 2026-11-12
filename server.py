@@ -105,15 +105,8 @@ class GalaxyHandler(BaseHTTPRequestHandler):
             path_to_index = {str(Path(node["path"]).resolve()).casefold(): node["id"] for node in graph["nodes"]}
             saved_path = str(Path(result.get("path", "")).resolve()).casefold()
             result["node_index"] = path_to_index.get(saved_path)
-            anchor_source_id = result.get("anchor_source_id")
-            if anchor_source_id:
-                try:
-                    with urlopen(BACKEND + f"/knowledge/source/{int(anchor_source_id)}", timeout=20) as response:
-                        source = json.loads(response.read().decode("utf-8"))
-                    anchor_path = str(Path(source.get("path", "")).resolve()).casefold()
-                    result["anchor_node_index"] = path_to_index.get(anchor_path)
-                except (URLError, ValueError, OSError):
-                    result["anchor_node_index"] = None
+            anchor_path = result.get("anchor_path")
+            result["anchor_node_index"] = path_to_index.get(str(Path(anchor_path).resolve()).casefold()) if anchor_path else None
             self._json(200, result)
         except HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")[:1200]
