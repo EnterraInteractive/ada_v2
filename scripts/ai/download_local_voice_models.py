@@ -10,8 +10,10 @@ from huggingface_hub import hf_hub_download, snapshot_download
 ROOT = Path(__file__).resolve().parents[2]
 CACHE = ROOT / ".ada" / "cache" / "huggingface"
 WHISPER_DEST = ROOT / "models" / "voice" / "whisper-small"
+WHISPER_COMMAND_DEST = ROOT / "models" / "voice" / "whisper-large-v3-turbo"
 PIPER_DEST = ROOT / "models" / "voice" / "piper"
 WHISPER_REPO = "Systran/faster-whisper-small"
+WHISPER_COMMAND_REPO = "Systran/faster-whisper-large-v3-turbo"
 PIPER_REPO = "rhasspy/piper-voices"
 PIPER_FILES = (
     "en/en_US/lessac/medium/en_US-lessac-medium.onnx",
@@ -32,18 +34,22 @@ def main() -> int:
     os.environ["TEMP"] = str(ROOT / ".ada" / "cache" / "tmp")
     os.environ["TMP"] = os.environ["TEMP"]
 
-    if WHISPER_DEST.exists() and any(WHISPER_DEST.iterdir()) and not args.force:
-        print(f"Keeping existing Whisper model: {WHISPER_DEST}")
-    else:
-        WHISPER_DEST.mkdir(parents=True, exist_ok=True)
-        print(f"Downloading {WHISPER_REPO} into {WHISPER_DEST}")
-        snapshot_download(
-            repo_id=WHISPER_REPO,
-            repo_type="model",
-            local_dir=str(WHISPER_DEST),
-            token=os.environ.get("HF_TOKEN") or None,
-            force_download=args.force,
-        )
+    for whisper_repo, whisper_dest in (
+        (WHISPER_REPO, WHISPER_DEST),
+        (WHISPER_COMMAND_REPO, WHISPER_COMMAND_DEST),
+    ):
+        if whisper_dest.exists() and (whisper_dest / "model.bin").is_file() and not args.force:
+            print(f"Keeping existing Whisper model: {whisper_dest}")
+        else:
+            whisper_dest.mkdir(parents=True, exist_ok=True)
+            print(f"Downloading {whisper_repo} into {whisper_dest}")
+            snapshot_download(
+                repo_id=whisper_repo,
+                repo_type="model",
+                local_dir=str(whisper_dest),
+                token=os.environ.get("HF_TOKEN") or None,
+                force_download=args.force,
+            )
 
     for filename in PIPER_FILES:
         target = PIPER_DEST / Path(filename).name
@@ -71,7 +77,7 @@ def main() -> int:
     missing = [str(path) for path in expected if not path.is_file() or path.stat().st_size == 0]
     if missing:
         raise RuntimeError("Speech model download incomplete: " + ", ".join(missing))
-    print("PASS: local Whisper and Piper model files are present under the A.D.A project.")
+    print("PASS: local Whisper wake/command models and Piper voice files are present under the A.D.A project.")
     return 0
 
 
