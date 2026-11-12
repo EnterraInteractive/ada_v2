@@ -79,7 +79,7 @@ if (-not $SkipNode) {
 
 Write-Host ""
 Write-Host "PASS: Python packages, caches, and browser runtime are project-local." -ForegroundColor Green
-Write-Host "Next: powershell -ExecutionPolicy Bypass -File scripts\\ai\\install_k2_runtime.ps1"
-Write-Host "Then: .\\.venv\\Scripts\\python.exe scripts\\ai\\download_k2_model.py"
-Write-Host "Then: .\\.venv\\Scripts\\python.exe scripts\\ai\\verify_k2_runtime.py --full --tool-test"
+Write-Host "Next: powershell -ExecutionPolicy Bypass -File scripts/ai/install_k2_runtime.ps1"
+Write-Host "Then: .venv/Scripts/python.exe scripts/ai/download_k2_model.py"
+Write-Host "Then: .venv/Scripts/python.exe scripts/ai/verify_k2_runtime.py --full --tool-test"
 Write-Host "Note: NVIDIA drivers, CUDA Toolkit 13.x, Git, CMake, and Node.js remain machine-level prerequisites."
