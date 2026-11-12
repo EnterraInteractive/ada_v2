@@ -71,7 +71,7 @@ class GalaxyHandler(BaseHTTPRequestHandler):
         self.wfile.write(content)
 
     def do_POST(self):
-        if self.path not in {"/chat", "/remember"}:
+        if self.path not in {"/chat", "/remember", "/hear", "/speak"}:
             self.send_error(404)
             return
         try:
@@ -82,7 +82,7 @@ class GalaxyHandler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("JSON body must be an object.")
-            if self.path == "/chat":
+            if self.path in {"/hear", "/speak"}:\n                self._json(200, self._backend(self.path, payload))\n                return\n\n            if self.path == "/chat":
                 result = self._backend("/chat", payload)
                 graph = build_graph()
                 path_to_index = {str(Path(node["path"]).resolve()).casefold(): node["id"] for node in graph["nodes"]}
