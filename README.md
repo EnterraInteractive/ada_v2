@@ -90,7 +90,11 @@ conda create -n ada_v2 python=3.11 -y && conda activate ada_v2
 pip install -r requirements.txt
 playwright install chromium
 
-# 3. Setup frontend
+# 3. Configure Gemini Live API voice (optional)
+# Copy .env.example to .env and set GEMINI_API_KEY in .env
+# Keep .env private; it is excluded from Git.
+
+# 4. Setup frontend
 npm install
 
 
@@ -233,11 +237,12 @@ The K2 profile defaults to a 65,536-token context and 32,768-token output, with 
 - [Gemma 4 12B Instruct GGUF + mmproj](https://huggingface.co/ggml-org/gemma-4-12B-it-GGUF)
 - [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) (in-process Python bindings)
 
-**Gemini API voice**
-- Voice is configured to use the Gemini API. No local Whisper model or operating-system TTS engine is installed or loaded.
-- The API credential is supplied through the `GEMINI_API_KEY` environment variable and must never be committed.
-- Voice is intentionally disabled until the Gemini API audio transport is connected. A.D.A will not silently fall back to local voice.
-- Provider metadata is stored under `models/voice/gemini/`; the API voice itself does not require local model weights.
+**Gemini Live API voice**
+- A.D.A streams microphone audio to Gemini Live API and plays its streamed native-audio responses. The backend uses the Google GenAI Python SDK; no local Whisper or TTS model is loaded.
+- Copy `.env.example` to `.env` in the A.D.A project root and set `GEMINI_API_KEY=your_key`. The backend loads this file automatically. Never commit `.env`.
+- The default voice model is `gemini-3.8-live`; override it with `GEMINI_LIVE_MODEL` if needed.
+- Enable **Gemini Live API Voice** in Settings and save. Start the voice session with the microphone control. Voice is API-backed and independent of local K2/Gemma inference.
+- Input audio is sent as 16 kHz PCM and output audio is played as 24 kHz PCM. Provider metadata is stored under `models/voice/gemini/`; no local voice weights are required.
 ### Option 1: The "Easy" Way (Single Terminal)
 The app is smart enough to start the backend for you.
 1. Open your terminal in the `ada_v2` folder.
