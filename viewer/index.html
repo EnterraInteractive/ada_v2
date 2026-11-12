@@ -43,7 +43,8 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  const $ = id => document.getElementById(id);
  const sessionId = sessionStorage.getItem('ada-galaxy-session') || (crypto.randomUUID ? crypto.randomUUID() : 'galaxy-'+Date.now());
  sessionStorage.setItem('ada-galaxy-session',sessionId);
- let graph, data={nodes:[],links:[]}, selected=null, voiceOn=true, interacted=false, pendingSpeech='', busy=false, statusText='', lastBrainId=null, brainTimer=null, activeVoiceMode='local', browserSpeaking=false;\n const muted=new URLSearchParams(location.search).get('mute')==='1';
+ let graph, data={nodes:[],links:[]}, selected=null, voiceOn=true, interacted=false, pendingSpeech='', busy=false, statusText='', lastBrainId=null, brainTimer=null, activeVoiceMode='local', browserSpeaking=false;
+ const muted=new URLSearchParams(location.search).get('mute')==='1';
  const status = text => { statusText=text; $('status').textContent=text; };
  const error = text => { $('error').textContent=text; $('error').style.display='block'; };
  const clearError = () => $('error').style.display='none';
@@ -198,7 +199,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  }
  async function dispatchHandsFree(frames){
    try{
-     if(currentSource){
+     if(currentSource||browserSpeaking){
        const interruptText=await transcribeFrames(frames,'wake');
        if(/\\b(stop|wait)\\b/i.test(interruptText)){if(currentSource){try{currentSource.stop();}catch{}currentSource=null;}if(window.speechSynthesis)window.speechSynthesis.cancel();browserSpeaking=false;status('SPEECH INTERRUPTED');}
        return;
@@ -268,7 +269,8 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
    }catch(e){handsFree=false;$('handsfree').textContent='HANDS FREE OFF';error('Microphone access: '+(e.message||e.name));status('MICROPHONE UNAVAILABLE');}
  }
  $('ask').addEventListener('submit',e=>{e.preventDefault();ask();});
- $('mic').addEventListener('click',startMic);\n $('handsfree').addEventListener('click',toggleHandsFree);
+ $('mic').addEventListener('click',startMic);
+ $('handsfree').addEventListener('click',toggleHandsFree);
  $('voiceToggle').addEventListener('click',()=>{interaction();voiceOn=!voiceOn;$('voiceToggle').textContent=voiceOn?'VOICE ON':'VOICE OFF';if(!voiceOn&&currentSource){try{currentSource.stop();}catch{}currentSource=null;}if(!voiceOn&&window.speechSynthesis){window.speechSynthesis.cancel();browserSpeaking=false;}});
  $('reindex').addEventListener('click',async()=>{interaction();status('● THINKING…');try{await addNote();}catch(e){error(e.message);}finally{status('READY · NOTES GROUNDED · LOCAL VIEWER');}});
  document.addEventListener('pointerdown',interaction,{once:true});
@@ -280,7 +282,9 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
     graph.d3Force('charge').strength(-115);graph.d3Force('link').distance(75);graph.d3VelocityDecay(.28);graph.warmupTicks(80);graph.cooldownTime(18000);graph.graphData(data);graph.cameraPosition({x:0,y:0,z:650},{x:0,y:0,z:0},0);
     $('count').textContent=data.nodes.length+' NOTES INDEXED · '+data.links.length+' CONNECTIONS';
     setInterval(()=>graph.d3ReheatSimulation(),12000);
-    fetch('/brain').then(r=>r.ok?r.json():null).then(brain=>setBrainBadge(brain,false)).catch(()=>{});\n    fetch('/voice').then(r=>r.ok?r.json():null).then(voice=>{if(voice?.mode)activeVoiceMode=voice.mode;}).catch(()=>{});\n    if(!muted)speak('Hello, sir.');
+    fetch('/brain').then(r=>r.ok?r.json():null).then(brain=>setBrainBadge(brain,false)).catch(()=>{});
+    fetch('/voice').then(r=>r.ok?r.json():null).then(voice=>{if(voice?.mode)activeVoiceMode=voice.mode;}).catch(()=>{});
+    if(!muted)speak('Hello, sir.');
     status('READY · NOTES GROUNDED · LOCAL VIEWER');
    }catch(e){error(e.message||'Could not initialise the galaxy.');}
  }
