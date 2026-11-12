@@ -138,6 +138,14 @@ def load_settings():
                          SETTINGS["model_runtime"].update(runtime_values)
                          for legacy_key in ("executable", "host", "port", "startup_timeout_seconds"):
                              SETTINGS["model_runtime"].pop(legacy_key, None)
+                    elif k == "voice" and isinstance(v, dict):
+                        # Migrate legacy local Whisper/OS-TTS settings to the
+                        # selected Gemini API provider. Never silently fall
+                        # back to local voice when the old settings file loads.
+                        if v.get("provider") == "gemini_api":
+                            SETTINGS["voice"].update(v)
+                        else:
+                            SETTINGS["voice"] = copy.deepcopy(DEFAULT_SETTINGS["voice"])
                     else:
                         SETTINGS[k] = v
             if not SETTINGS.get("workspace_path") and Path("E:/Unreal Projects/EnterraOnline").is_dir():
