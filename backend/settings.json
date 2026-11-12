@@ -30,7 +30,7 @@
             {
                 "id": "k2-horizon-7b",
                 "name": "K2-Horizon 7B",
-                "model_path": "",
+                "model_path": "models/language/k2-horizon-7b/model.gguf",
                 "capabilities": [
                     "chat",
                     "coding",
@@ -53,8 +53,8 @@
             {
                 "id": "gemma-4-12b",
                 "name": "Gemma 4 12B Vision",
-                "model_path": "",
-                "mmproj_path": "",
+                "model_path": "models/vision/gemma-4-12b/model.gguf",
+                "mmproj_path": "models/vision/gemma-4-12b/mmproj.gguf",
                 "capabilities": [
                     "vision"
                 ],
@@ -70,8 +70,9 @@
         ]
     },
     "voice": {
-        "model_size": "base.en",
-        "vad_aggressiveness": 2
+        "provider": "gemini_api",
+        "enabled": false,
+        "api_key_env": "GEMINI_API_KEY"
     },
     "unreal_mcp": {
         "enabled": true,
