@@ -126,3 +126,22 @@ def test_offline_network_audit_and_drill_are_present():
     assert "record_browser_resources" in audit
     assert "NON-LOCAL HOSTS" in drill
     assert "scripts" in str(root / "scripts")
+
+
+def test_live_remember_and_status_routes_match_the_viewer_proxy_contract():
+    root = Path(__file__).resolve().parents[1]
+    backend = (root / "backend" / "server.py").read_text(encoding="utf-8")
+    proxy = (root / "server.py").read_text(encoding="utf-8")
+    viewer = (root / "viewer" / "index.html").read_text(encoding="utf-8")
+
+    assert '@app.post("/remember")' in backend
+    assert '"node_index": node.get("id") if node else None' in backend
+    assert '"anchor_node_index": anchor.get("id") if anchor else None' in backend
+    assert 'if path == "/brain":' in proxy and 'BACKEND + "/brain/status"' in proxy
+    assert 'if path == "/voice":' in proxy and 'BACKEND + "/voice/status"' in proxy
+    assert 'self._backend("/remember", payload)' in proxy
+    assert 'result["node_index"] = path_to_index.get(saved_path)' in proxy
+    assert 'result["anchor_node_index"]' in proxy
+    assert "fetch('/brain')" in viewer and "fetch('/voice')" in viewer
+    assert "addNote(result.anchor_node_index??null,result.node_index??null)" in viewer
+    assert "showNode(node,true)" in viewer
