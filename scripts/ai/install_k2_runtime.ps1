@@ -16,12 +16,10 @@ Write-Host "Project: $ProjectRoot"
 Write-Host "Build:   $BuildRoot"
 
 $LocalPython = Join-Path (Join-Path (Join-Path $ProjectRoot ".venv") "Scripts") "python.exe"
-if (Test-Path $LocalPython) {
-    $Python = $LocalPython
-} else {
-    $Python = (Get-Command python -ErrorAction Stop).Source
-    Write-Warning "Project-local .venv was not found. Run scripts\\setup_local.ps1 first; using PATH Python temporarily."
+if (-not (Test-Path $LocalPython)) {
+    throw "Project-local Python was not found. Run powershell -ExecutionPolicy Bypass -File scripts/setup_local.ps1 first."
 }
+$Python = $LocalPython
 $CacheRoot = Join-Path (Join-Path $ProjectRoot ".ada") "cache"
 $env:PIP_CACHE_DIR = Join-Path $CacheRoot "pip"
 $env:HF_HOME = Join-Path $CacheRoot "huggingface"
@@ -96,5 +94,5 @@ $BuildInfo = [ordered]@{
 $BuildInfo | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 $StampFile
 Write-Host "K2 runtime build installed." -ForegroundColor Green
 Write-Host "Build record: $StampFile"
-Write-Host "Next: python scripts\ai\verify_k2_runtime.py"
-Write-Host "Full GPU and tool test: python scripts\ai\verify_k2_runtime.py --full --tool-test"
+Write-Host "Next: .venv/Scripts/python.exe scripts/ai/verify_k2_runtime.py"
+Write-Host "Full GPU and tool test: .venv/Scripts/python.exe scripts/ai/verify_k2_runtime.py --full --tool-test"
