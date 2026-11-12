@@ -617,6 +617,19 @@ async def knowledge_galaxy_remember(payload: dict):
         related = await asyncio.to_thread(galaxy_knowledge_base.search, body, 20)
         related_markdown = next((item for item in related if Path(item["path"]).suffix.casefold() == ".md"), None)
         anchor_path = related_markdown["path"] if related_markdown else None
+        if anchor_path is None:
+            existing_graph = await asyncio.to_thread(_galaxy_graph_data)
+            capture_tokens = _galaxy_tokens(body)
+            ranked = []
+            for candidate in existing_graph["nodes"]:
+                candidate_text = await asyncio.to_thread(_galaxy_read_full, candidate["source_id"])
+                overlap = len(capture_tokens & _galaxy_tokens(candidate.get("label", "") + " " + candidate_text))
+                if overlap:
+                    ranked.append((overlap, candidate["path"]))
+            if ranked:
+                anchor_path = max(ranked, key=lambda item: item[0])[1]
+            elif existing_graph["nodes"]:
+                anchor_path = existing_graph["nodes"][0]["path"]
         saved = await asyncio.to_thread(galaxy_knowledge_base.remember, body)
         graph = await asyncio.to_thread(_galaxy_graph_data)
         node = next((item for item in graph["nodes"] if item["source_id"] == saved["id"]), None)
