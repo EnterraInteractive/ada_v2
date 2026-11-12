@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [switch]$SkipNode,
-    [switch]$SkipPlaywright
+    [switch]$SkipPlaywright,
+    [switch]$SkipVoiceStudio
 )
 
 $ErrorActionPreference = "Stop"
@@ -121,9 +122,17 @@ if (-not (Test-Path $MediapipeSource)) {
 New-Item -ItemType Directory -Force -Path $MediapipeDestination | Out-Null
 Copy-Item -Path (Join-Path $MediapipeSource "*") -Destination $MediapipeDestination -Recurse -Force
 
+if (-not $SkipVoiceStudio) {
+    Write-Host "Installing VoiceStudio under .ada/tools and confining its data to .ada/voicestudio-data..." -ForegroundColor Yellow
+    & (Join-Path $PSScriptRoot "ai/install_voicestudio.ps1")
+    if ($LASTEXITCODE -ne 0) { throw "Project-local VoiceStudio installation failed." }
+}
+
 Write-Host ""
 Write-Host "PASS: Python runtime, Python packages, Node.js, npm packages, caches, MediaPipe WASM, and browser runtime are project-local." -ForegroundColor Green
 Write-Host "Next: powershell -ExecutionPolicy Bypass -File scripts/ai/install_k2_runtime.ps1"
 Write-Host "Then: .venv/Scripts/python.exe scripts/ai/download_k2_model.py"
 Write-Host "Then: .venv/Scripts/python.exe scripts/ai/verify_k2_runtime.py --full --tool-test"
+Write-Host "Then: .venv/Scripts/python.exe scripts/ai/download_local_voice_models.py"
+Write-Host "Then: powershell -ExecutionPolicy Bypass -File scripts/run_voicestudio.ps1 (install the local runtime, select VoxCPM2, and create the Jarvis voice profile)"
 Write-Host "Note: NVIDIA driver, CUDA Toolkit 13.x, Git, CMake, and uv remain machine-level prerequisites."
