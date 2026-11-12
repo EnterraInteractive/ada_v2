@@ -103,6 +103,30 @@ class LocalVoiceService:
 
             self._whisper, self._piper = await asyncio.to_thread(load)
 
+    async def _load_whisper_only(self) -> None:
+        """Load only the local Whisper model for HTTP transcription requests."""
+        if self._whisper is not None:
+            return
+        async with self._load_lock:
+            if self._whisper is not None:
+                return
+            whisper_path = self._model_path("whisper_model_path", "models/voice/whisper-small")
+            if not whisper_path.exists():
+                raise RuntimeError(f"Local Whisper model is missing: {whisper_path}")
+
+            def load():
+                from faster_whisper import WhisperModel
+                device = str(self.config.get("whisper_device", "cuda"))
+                compute_type = str(self.config.get("whisper_compute_type", "float16" if device == "cuda" else "int8"))
+                try:
+                    return WhisperModel(str(whisper_path), device=device, compute_type=compute_type)
+                except Exception:
+                    if device != "cpu":
+                        return WhisperModel(str(whisper_path), device="cpu", compute_type="int8")
+                    raise
+
+            self._whisper = await asyncio.to_thread(load)
+
     async def start(self, sid: str, model_name: str | None = None) -> None:
         await self._load_models()
         self.sessions[sid] = LocalVoiceSession(sid=sid)
