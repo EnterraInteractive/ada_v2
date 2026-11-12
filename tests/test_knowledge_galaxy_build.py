@@ -125,7 +125,8 @@ def test_offline_network_audit_and_drill_are_present():
     viewer = (root / "viewer" / "index.html").read_text(encoding="utf-8")
     assert "socket.socket.connect" in audit
     assert "record_browser_resources" in audit
-    assert "fetch('/network-audit/browser'" in viewer
+    assert "fetch('/network-audit'" in viewer
+    assert 'self._backend("/network-audit/browser", payload)' in (root / "server.py").read_text(encoding="utf-8")
     assert "NON-LOCAL HOSTS" in drill
     assert "scripts" in str(root / "scripts")
 
