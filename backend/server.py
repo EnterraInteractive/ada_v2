@@ -203,6 +203,10 @@ def load_settings():
                         # Keep provider selection explicit. Legacy configurations
                         # are migrated to the project-local voice pipeline.
                         SETTINGS["voice"].update(v)
+                        if not SETTINGS["voice"].get("wake_model_path"):
+                            SETTINGS["voice"]["wake_model_path"] = "models/voice/whisper-small"
+                        if SETTINGS["voice"].get("whisper_model_path") == "models/voice/whisper-small":
+                            SETTINGS["voice"]["whisper_model_path"] = "models/voice/whisper-large-v3-turbo"
                         if SETTINGS["voice"].get("provider") not in {"local", "gemini_api"}:
                             SETTINGS["voice"]["provider"] = "local"
                     else:
