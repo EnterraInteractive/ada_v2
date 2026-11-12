@@ -43,8 +43,8 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  const $ = id => document.getElementById(id);
  const sessionId = sessionStorage.getItem('ada-galaxy-session') || (crypto.randomUUID ? crypto.randomUUID() : 'galaxy-'+Date.now());
  sessionStorage.setItem('ada-galaxy-session',sessionId);
- let graph, data={nodes:[],links:[]}, selected=null, voiceOn=true, interacted=false, pendingSpeech='', recognition=null, busy=false;
- const status = text => $('status').textContent = text;
+ let graph, data={nodes:[],links:[]}, selected=null, voiceOn=true, interacted=false, pendingSpeech='', recognition=null, busy=false, statusText='';
+ const status = text => { statusText=text; $('status').textContent=text; };
  const error = text => { $('error').textContent=text; $('error').style.display='block'; };
  const clearError = () => $('error').style.display='none';
  const color = group => {let h=0;for(const c of String(group||'notes'))h=(h*31+c.charCodeAt(0))|0;return 'hsl('+Math.abs(h)%360+',85%,68%)';};
@@ -96,7 +96,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
       else highlight([]);
     }
    }catch(e){error(e.message||'Request failed.');status('● ERROR');}
-   finally{busy=false;$('send').disabled=false;if(!status().includes('ERROR'))status('READY · NOTES GROUNDED · LOCAL VIEWER');}
+   finally{busy=false;$('send').disabled=false;if(!statusText.includes('ERROR'))status('READY · NOTES GROUNDED · LOCAL VIEWER');}
  }
  function startMic(){
    interaction();const Recognition=window.webkitSpeechRecognition||window.SpeechRecognition;if(!Recognition){error('Speech recognition is available in Chrome.');return;}
