@@ -444,18 +444,6 @@ async def knowledge_reindex():
     return await asyncio.to_thread(knowledge_base.reindex)
 
 
-@app.post("/knowledge/remember")
-async def knowledge_remember(payload: dict):
-    text = str((payload or {}).get("text", "")).strip()
-    if not text:
-        return {"ok": False, "error": "Memory text is empty."}
-    try:
-        saved = await asyncio.to_thread(knowledge_base.remember, text)
-        return {"ok": True, **saved}
-    except Exception as exc:
-        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
-
-
 @app.get("/status")
 async def status():
     return {"status": "running", "service": "A.D.A Backend", "backend_port": 8001, "models": model_runtime.status(), "unreal_mcp": unreal_mcp_client.status() if unreal_mcp_client else {"connected": False}}
