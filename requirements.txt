@@ -20,3 +20,6 @@ python-dotenv>=1.0.1,<2
 
 # Project-local GGUF model downloads
 huggingface_hub>=0.26,<2
+
+# Extract text from local PDF reference documents
+pypdf>=5,<7
