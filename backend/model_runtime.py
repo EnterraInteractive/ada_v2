@@ -56,7 +56,12 @@ class LocalModelRuntime:
         path = Path(str(value)).expanduser()
         if not path.is_absolute():
             path = self.project_root / path
-        return path.resolve()
+        resolved = path.resolve()
+        try:
+            resolved.relative_to(self.project_root)
+        except ValueError:
+            return None
+        return resolved
 
     def _file_exists(self, value: Any) -> bool:
         path = self._resolve_path(value)
@@ -140,7 +145,9 @@ class LocalModelRuntime:
     def _load_model_sync(self, model_config: dict[str, Any]):
         model_id = model_config["id"]
         model_path = self._resolve_path(model_config.get("model_path"))
-        if model_path is None or not model_path.is_file():
+        if model_path is None:
+            raise ModelRuntimeError("GGUF model paths must remain inside the A.D.A project directory.")
+        if not model_path.is_file():
             raise ModelRuntimeError(
                 f"GGUF model file is missing for '{model_config.get('name', model_id)}': {model_path}"
             )
