@@ -122,7 +122,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
      const sample=(joined[left]||0)*(1-fraction)+(joined[Math.min(left+1,joined.length-1)]||0)*fraction;
      pcm[i]=Math.max(-1,Math.min(1,sample))*32767;
    }
-   return btoa(String.fromCharCode(...new Uint8Array(pcm.buffer)));
+   const bytes=new Uint8Array(pcm.buffer);let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(binary);
  }
  async function startMic(){
    interaction();if(currentSource){try{currentSource.stop();}catch{}currentSource=null;}
@@ -136,7 +136,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
        const audioPcm=resamplePcm(frames,rate);
        const response=await fetch('/hear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({audio_pcm16:audioPcm})});
        const result=await response.json();if(result.error)throw new Error(result.error);
-       if(result.transcript){$('question').value=result.transcript;$('answer').textContent=result.answer||'';await playPcm(result.audio_pcm16,result.sample_rate||24000);}
+       if(result.transcript){$('question').value=result.transcript;await ask(result.transcript);}
        else status('NO SPEECH DETECTED · TRY AGAIN');
      }catch(e){error('Local Whisper: '+(e.message||'transcription failed'));status('VOICE ERROR');}
      return;
