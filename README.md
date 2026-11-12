@@ -365,7 +365,7 @@ ada_v2/
 |------------|---------|
 | **macOS & Windows** | Tested on macOS 14+ and Windows 10/11. Linux is untested. |
 | **Camera Required** | Face auth and gesture control need a working webcam. |
-| **Network Dependency** | Local text/code inference runs offline after model files are available; browser tasks require network access. |
+| **Network Dependency** | K2/Gemma local inference and workspace tools can run offline after setup; browser tasks and the optional Gemini voice provider require network access. |
 | **Single User** | Face auth recognizes one person (the `reference.jpg`). |
 
 ---
@@ -392,12 +392,12 @@ Contributions are welcome! Here's how:
 
 | Aspect | Implementation |
 |--------|----------------|
-| **API Keys** | No API key is required for local inference, voice, or workspace tools. |
+| **API Keys** | No key is required for K2/Gemma inference or workspace tools. The optional Gemini Live voice provider requires a Google API key and streams audio to Google's service. |
 | **Face Data** | Processed locally, never uploaded. |
 | **No Cloud Storage** | All project data stays on your machine. |
 
 > [!WARNING]
-> Never share your `reference.jpg` file. It contains biometric data.
+> Never share your `reference.jpg` file. It contains biometric data. Gemini Live voice is remote; use the local text assistant when you need a network-independent session.
 
 ---
 
