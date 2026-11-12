@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && npx electron .\"",
     "build": "vite build",
-    "start": "npx electron ."
+    "start": "npx electron .",
+    "postinstall": "node scripts/stage_galaxy_vendor.mjs",
+    "stage:galaxy": "node scripts/stage_galaxy_vendor.mjs"
   },
   "keywords": [],
   "author": "",
