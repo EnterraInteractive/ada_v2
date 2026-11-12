@@ -23,3 +23,7 @@ huggingface_hub>=0.26,<2
 
 # Extract text from local PDF reference documents
 pypdf>=5,<7
+
+# Fully local speech recognition and synthesis
+faster-whisper>=1.1,<2
+piper-tts>=1.2,<2
