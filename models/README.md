@@ -13,6 +13,10 @@ The filenames above are the expected defaults. If a downloaded GGUF has a
 different filename, either rename it to the expected name or update its path in
 both `registry.json` and A.D.A's per-machine model settings.
 
+Download the default K2 Q4_K_M GGUF into the project with
+`python scripts/ai/download_k2_model.py`. Model weights are kept in this
+folder and excluded from Git.
+
 For Windows RTX 50-series systems, install the K2-compatible embedded runtime
 using `scripts/ai/install_k2_runtime.ps1`, then verify it with
 `scripts/ai/verify_k2_runtime.py`. The required llama.cpp baseline and CUDA
