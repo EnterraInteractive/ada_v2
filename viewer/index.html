@@ -82,7 +82,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
    if(newIndex!==null){const node=data.nodes.find(n=>n.id===newIndex);if(node){node.__pulseUntil=Date.now()+2300;showNode(node,true);highlight([newIndex]);const timer=setInterval(()=>{graph.refresh();if(Date.now()>node.__pulseUntil)clearInterval(timer);},80);}}
  }
  async function ask(text){
-   text=(text||$('question').value).trim();if(!text||busy)return;interaction();clearError();busy=true;$('send').disabled=true;status('● THINKING…');$('question').value='';
+   text=(text||$('question').value).trim();if(!text||busy)return;interaction();clearError();busy=true;$('send').disabled=true;status('● thinking…');$('question').value='';
    try{
     if(/^remember that\b/i.test(text)){
       const r=await fetch('/remember',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const result=await r.json();if(result.error)throw new Error(result.error);
@@ -103,7 +103,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  function startMic(){
    interaction();const Recognition=window.webkitSpeechRecognition||window.SpeechRecognition;if(!Recognition){error('Speech recognition is available in Chrome.');return;}
    recognition=new Recognition();recognition.lang='en-GB';recognition.interimResults=false;recognition.maxAlternatives=1;
-   recognition.onstart=()=>status('● LISTENING…');recognition.onresult=e=>{const transcript=e.results?.[0]?.[0]?.transcript||'';$('question').value=transcript;ask(transcript);};
+   recognition.onstart=()=>status('● listening…');recognition.onresult=e=>{const transcript=e.results?.[0]?.[0]?.transcript||'';$('question').value=transcript;ask(transcript);};
    recognition.onerror=e=>error('Microphone: '+e.error);recognition.onend=()=>{if(!busy)status('READY · NOTES GROUNDED · LOCAL VIEWER');};recognition.start();
  }
  $('ask').addEventListener('submit',e=>{e.preventDefault();ask();});
