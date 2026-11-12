@@ -46,7 +46,7 @@ const SettingsWindow = ({
     const [workspacePath, setWorkspacePath] = useState('');
     const [modelRuntime, setModelRuntime] = useState({ primary_model_id: '', vision_model_id: '', models: [] });
     const [modelRuntimeStatus, setModelRuntimeStatus] = useState({ runtime_available: false, runtime_error: '' });
-    const [voiceSettings, setVoiceSettings] = useState({ provider: 'gemini_api', enabled: false, api_key_env: 'GEMINI_API_KEY' });
+    const [voiceSettings, setVoiceSettings] = useState({ provider: 'gemini_api', enabled: true, api_key_env: 'GEMINI_API_KEY', model: 'gemini-3.8-live' });
     const [unrealMcp, setUnrealMcp] = useState({ enabled: true, url: 'http://127.0.0.1:8000/mcp' });
     const [unrealMcpStatus, setUnrealMcpStatus] = useState({ connected: false, tool_count: 0 });
 
@@ -392,10 +392,17 @@ const SettingsWindow = ({
                     ))}
                 </div>
                 <div className="mt-4 rounded border border-cyan-900/60 bg-gray-950/70 p-3">
-                    <h4 className="text-[10px] text-cyan-400 uppercase tracking-wider mb-2">Gemini API Voice</h4>
-                    <p className="text-[10px] text-gray-400">Provider: Gemini API</p>
-                    <p className="text-[10px] text-gray-400">Credential: GEMINI_API_KEY environment variable</p>
-                    <p className="text-[9px] text-amber-400 mt-2">Remote voice transport is not connected yet. Local Whisper and operating-system speech fallback are disabled.</p>
+                    <div className="flex items-center justify-between">
+                        <h4 className="text-[10px] text-cyan-400 uppercase tracking-wider">Gemini Live API Voice</h4>
+                        <button onClick={() => setVoiceSettings(prev => ({ ...prev, provider: 'gemini_api', enabled: !prev.enabled }))}
+                            className={`relative w-8 h-4 rounded-full transition-colors ${voiceSettings.enabled ? 'bg-cyan-500/80' : 'bg-gray-700'}`}>
+                            <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${voiceSettings.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                        </button>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-2">Model: {voiceSettings.model || 'gemini-3.8-live'}</p>
+                    <p className="text-[10px] text-gray-400">Credential: GEMINI_API_KEY in the A.D.A project .env file</p>
+                    <p className="text-[9px] text-gray-500 mt-2">Microphone audio is streamed to Gemini; generated audio plays through your selected output device. No local speech model is loaded.</p>
+                    <p className="text-[9px] text-amber-400 mt-2">Save Local Setup to apply changes. A valid Gemini API key is required.</p>
                 </div>
 
                 <div className="flex gap-2 mt-3">
