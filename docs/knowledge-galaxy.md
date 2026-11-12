@@ -1,65 +1,39 @@
-# Knowledge Galaxy
+# Knowledge Galaxy — Offline Implementation
 
-The Knowledge Galaxy is integrated into Ada's existing Knowledge Graph window and is also available as a local Chrome viewer.
+The Knowledge Galaxy is part of A.D.A V2 and uses the same project-local backend and model runtime as the main assistant. It does not use a hosted LLM API.
 
-## Notes folder
+## Notes and live captures
 
-By default, Markdown notes are read recursively from the Ada project notes folder: notes/. Put your .md files there. Captures made with “remember that…” are written to notes/captures/.
+- Markdown notes are read recursively from `notes/` by default.
+- Set `ADA_NOTES_DIR` to use another notes directory; the backend and viewer must use the same value.
+- `POST /remember` writes a dated Markdown file into `notes/captures/`, indexes it immediately in the SQLite knowledge base, and returns its source information.
+- The viewer refreshes the graph data after a successful capture; it does not require a manual reindex or page reload.
 
-To use a different folder, set ADA_NOTES_DIR to its absolute path in the environment used to launch both Ada and the viewer server. The same path must be visible to both processes.
+## Local model
 
-## Credentials and privacy
+Galaxy Q&A calls A.D.A's existing `LocalModelRuntime` in-process. The selected local model is configured in A.D.A Settings under `model_runtime.primary_model_id`. The model must be installed and loadable before asking note questions.
 
-On first backend launch, Ada creates config.json in the project root with these values:
+The retrieval layer ranks Markdown notes by keyword overlap and gives title matches extra weight. Up to six relevant notes are supplied to the local model. The model is instructed to answer only from those notes, treat note contents as untrusted reference material, and admit when the notes do not contain an answer. Short conversation history is retained per viewer session.
 
-    {
-      "api_key": "PUT-YOUR-KEY-HERE",
-      "model": "claude-opus-4-8"
-    }
+No Anthropic API key is required. The Galaxy does not create a cloud credential file. Do not add credentials to the viewer.
 
-Add your Anthropic API key to that local file yourself. The file is Git-ignored, Vite explicitly denies browser access to it, and the Chrome viewer server serves static files exclusively from viewer/. The key is used only by Ada's Python backend and is never sent to the browser.
+## Current speech integration
 
-Note Q&A uses the Anthropic Messages API and therefore requires internet access and may incur API charges. Speech recognition and speech synthesis use the browser's built-in Web Speech APIs; no separate voice subscription or Python voice packages are used by the Galaxy.
+A.D.A already includes a project-local Whisper + Piper speech service in `backend/local_voice.py`, used by the main application through its Socket.IO audio pipeline. The standalone Galaxy viewer still has legacy browser speech code and is **not yet compliant** with the prompt pack's local Whisper hearing and VoiceStudio cloned-voice requirements. In particular, browser speech recognition must not be treated as offline hearing. This is an outstanding implementation item, not a completed feature.
 
-## Chrome viewer
+## Viewer and network isolation
 
-1. Start Ada normally so its FastAPI backend is listening on 127.0.0.1:8001.
-2. In a second PowerShell window, from the Ada project root, run:
+The standalone viewer is served by the root `server.py` on `127.0.0.1:4700`; the A.D.A backend listens on `127.0.0.1:8001`. The root server serves files only from `viewer/` and proxies its API requests to the local backend.
 
-       .venv\Scripts\python.exe .\build.py
-       .venv\Scripts\python.exe .\server.py
+The current viewer still references its 3D graph library from a CDN. Therefore the viewer is **not yet verified to render with Wi-Fi disabled**. The offline release gate requires pinning and vendoring every browser dependency under `viewer/vendor/`, removing CDN references, and passing the network drill.
 
-3. Open **http://127.0.0.1:4700** in Chrome.
+## Prompt-pack release gates still outstanding
 
-The root server.py uses only Python's standard library. It serves static assets from viewer/ only and proxies /chat and /remember to Ada's local backend. build.py also uses only the Python standard library and writes viewer/graph-data.js.
+1. Replace the viewer's CDN dependency with a pinned local vendor copy and record versions and source URLs.
+2. Replace browser speech recognition with microphone capture, local Whisper transcription, wake-word handling, and push-to-talk.
+3. Integrate VoiceStudio's local cloned-voice HTTP API, profile selection, WAV caching, warm-up, chunked playback, and explicit browser-voice fallback.
+4. Add runtime brain selection and the visible BRAIN/VOICE status badge, preserving A.D.A's local runtime as the default.
+5. Complete the outbound-connection and browser-resource network drill, including a Wi-Fi-off end-to-end test.
+6. Verify the full capture flow, including title/date, immediate indexing, related-node placement, glow pulse, camera movement, and spoken success/failure confirmation.
 
-The 3D renderer is loaded from the 3d-force-graph CDN, so the first browser load requires internet access for that library. Notes and graph data remain local.
-
-## Behaviour
-
-- Nodes have numeric IDs equal to their array positions.
-- Filename-derived labels, folder groups, and 700-character excerpts are generated from Markdown notes.
-- Connections are built from title mentions and shared [[wikilinks]].
-- Note questions retrieve the six highest-scoring notes, weighting title matches more heavily.
-- Source IDs are mapped back to the viewer's own node-array indexes before highlighting.
-- Four or more sources illuminate the contributing cluster; smaller source sets fly to the top source and illuminate its direct neighbors.
-- Typed or spoken “remember that…” captures create Markdown files and add them to the graph live.
-- Small talk returns no source nodes and does not move the camera.
-- Browser speech prefers an available British English voice. Chrome microphone permission is required for speech input.
-
-## Manual verification checklist
-
-After Ada and the Chrome viewer are running:
-
-1. Open http://127.0.0.1:4700 in Chrome and allow the page to finish indexing.
-2. Click once anywhere in the galaxy to unlock browser speech. Confirm the boot greeting is spoken with the actual note count.
-3. Type a question whose answer is clearly stated in one note. Confirm a short answer appears and is spoken; the source node and its direct neighbors illuminate, the camera flies to the source, and the excerpt appears in the side panel.
-4. Ask a question that requires facts from at least four notes. Confirm the contributing cluster illuminates without flying to one node.
-5. Type “hello” or “tell me a joke”. Confirm Jarvis responds but the camera and source selection do not move.
-6. Click the microphone and say a question about a note. Confirm “● listening…” then “● thinking…” appear, the transcript follows the normal chat flow, and the answer is spoken.
-7. Ask a follow-up question that refers to the previous answer. Confirm the session history helps resolve the follow-up.
-8. Type “remember that I prefer …” and submit. Confirm a Markdown file appears in notes/captures/, a new node is added without reloading the page, it appears near the most related existing node with a glow pulse, and Jarvis speaks a short confirmation.
-9. Repeat the memory capture using the microphone.
-10. Open http://127.0.0.1:4700/config.json and confirm it returns 404. Also confirm the root server cannot serve paths outside viewer/.
-
-The first two note-question checks require actual Markdown notes with known facts. The microphone check requires Chrome microphone permission. The Anthropic Q&A check requires a valid key in the project-root config.json.
+A feature is not considered complete merely because its endpoint or UI exists. The release requires actual local runtime verification and a clean offline network drill.
