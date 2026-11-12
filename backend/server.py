@@ -9,7 +9,7 @@ if sys.platform == 'win32':
 
 import socketio
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import threading
@@ -670,7 +670,7 @@ async def knowledge_galaxy_chat(payload: dict):
 
 
 @app.post("/speak")
-async def knowledge_galaxy_speak(payload: dict):
+async def knowledge_galaxy_speak(payload: dict, response: Response):
     """Synthesize speech with the project's local Piper voice."""
     data = payload or {}
     text = str(data.get("text") or "").strip()
@@ -682,12 +682,13 @@ async def knowledge_galaxy_speak(payload: dict):
         if SETTINGS.get("voice_studio", {}).get("enabled", True):
             try:
                 audio = await asyncio.to_thread(voice_studio_service.synthesize_pcm16, text)
-                provider = "voicestudio:" + str(SETTINGS.get("voice_studio", {}).get("profile", "Jarvis"))
+                provider = "local:" + str(SETTINGS.get("voice_studio", {}).get("profile", "Jarvis"))
             except Exception as studio_exc:
                 print(f"[VOICE] VoiceStudio unavailable; using local Piper fallback: {type(studio_exc).__name__}: {studio_exc}")
         if audio is None:
             await local_voice_service._load_piper_only()
             audio = await asyncio.to_thread(local_voice_service._synthesize, text)
+        response.headers["X-Jarvis-Voice"] = provider
         return {"ok": True, "provider": provider, "audio_pcm16": base64.b64encode(audio).decode("ascii"), "sample_rate": 24000}
     except Exception as exc:
         return {"error": f"{type(exc).__name__}: {exc}"}
