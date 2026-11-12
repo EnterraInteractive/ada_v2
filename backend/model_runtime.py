@@ -72,6 +72,16 @@ class LocalModelRuntime:
             self._runtime_error = f"{type(exc).__name__}: {exc}"
             return False, self._runtime_error, False
 
+    def _k2_build_info(self) -> dict[str, Any]:
+        build_file = self.project_root / ".ada" / "llama-cpp-build.json"
+        if not build_file.is_file():
+            return {}
+        try:
+            value = json.loads(build_file.read_text(encoding="utf-8-sig"))
+            return value if isinstance(value, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
     def status(self) -> dict[str, Any]:
         models = self.registry()
         primary_id = self.config.get("primary_model_id", "")
@@ -85,7 +95,18 @@ class LocalModelRuntime:
             and self._file_exists(vision.get("model_path"))
             and self._file_exists(vision.get("mmproj_path"))
         )
+        k2_build = self._k2_build_info()
+        k2_backend_verified = (
+            k2_build.get("llama_cpp_release") == "b11454"
+            and bool(k2_build.get("llama_cpp_commit"))
+        )
         return {
+            "k2_backend_verified": k2_backend_verified,
+            "k2_backend_release": k2_build.get("llama_cpp_release"),
+            "k2_backend_warning": None if k2_backend_verified else (
+                "K2-Horizon backend build has not been verified. Run "
+                "scripts/ai/install_k2_runtime.ps1, then scripts/ai/verify_k2_runtime.py."
+            ),
             "backend": "in-process llama-cpp-python",
             "runtime_available": runtime_available,
             "gpu_offload_supported": gpu_offload_supported,
@@ -205,8 +226,16 @@ class LocalModelRuntime:
         try:
             instance = Llama(**kwargs)
         except Exception as exc:
+            if model_id == self.config.get("primary_model_id"):
+                hint = (
+                    " For K2-Horizon, install the project-pinned llama.cpp b11454 runtime "
+                    "with scripts/ai/install_k2_runtime.ps1 and verify it with "
+                    "scripts/ai/verify_k2_runtime.py."
+                )
+            else:
+                hint = ""
             raise ModelRuntimeError(
-                f"Could not load '{model_config.get('name', model_id)}' in-process: {exc}"
+                f"Could not load '{model_config.get('name', model_id)}' in-process: {exc}.{hint}"
             ) from exc
 
         template_kwargs = model_config.get("chat_template_kwargs") or {}
