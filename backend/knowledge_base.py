@@ -249,6 +249,7 @@ class KnowledgeBase:
         ]
 
     def remember(self, text: str) -> dict:
+        self.ensure_indexed()
         body = (text or "").strip()
         if not body:
             raise ValueError("There is nothing to remember.")
