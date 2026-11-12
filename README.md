@@ -306,10 +306,11 @@ npm run dev
 **Symptoms**: A.D.A reports that the embedded inference runtime is unavailable, a GGUF file is missing, or the model fails to load.
 
 **Solution**:
-1. Confirm `llama-cpp-python` installed from the CUDA 13.0 wheel index and imports successfully.
-2. Verify the selected K2/Gemma GGUF paths and Gemma mmproj path in Settings.
-3. Check the A.D.A backend console for the native runtime or CUDA loading error.
-4. Lower context size or GPU layers if VRAM is exhausted.
+1. Run `python scripts\\ai\\verify_k2_runtime.py` to confirm the installed native backend recognizes the K2 GGUF.
+2. If the K2 backend is missing or has no GPU support, run `powershell -ExecutionPolicy Bypass -File scripts\\ai\\install_k2_runtime.ps1` from the project root.
+3. Verify the selected K2/Gemma GGUF paths and Gemma mmproj path in Settings.
+4. Check the A.D.A backend console for the native runtime or CUDA loading error.
+5. Run `python scripts\\ai\\verify_k2_runtime.py --full --tool-test` to isolate generation and tool-call issues before testing the full app.
 
 
 
