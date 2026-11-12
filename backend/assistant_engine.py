@@ -234,6 +234,8 @@ class AssistantEngine:
             return [], content
 
         patterns = [
+            # K2-Horizon's native IFM JSON envelope.
+            re.compile(r"<ifm\|tool_call>(.*?)</ifm\|tool_call>", re.DOTALL),
             re.compile(r"<(?:tool_call|function_call)>(.*?)</(?:tool_call|function_call)>", re.DOTALL),
             re.compile(r"<\|tool_call\|>(.*?)(?:<\|end_tool_call\|>|$)", re.DOTALL),
         ]
