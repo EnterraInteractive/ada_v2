@@ -73,3 +73,20 @@ def test_mcp_tools_are_exposed_to_k2_and_image_results_are_kept_for_gemma():
     assert tools[0]["function"]["parameters"]["properties"]["level"]["type"] == "string"
     assert "Found 12 actors." in result
     assert client.latest_image == (b"editor screenshot", "image/png")
+
+
+
+def test_read_only_annotation_is_exposed_for_permission_routing():
+    client = UnrealMCPClient()
+    client._tools = {
+        "unreal_get_level": SimpleNamespace(
+            name="get_level",
+            annotations=SimpleNamespace(readOnlyHint=True),
+        ),
+        "unreal_spawn_actor": SimpleNamespace(
+            name="spawn_actor",
+            annotations=SimpleNamespace(readOnlyHint=False),
+        ),
+    }
+    assert client.is_read_only("unreal_get_level") is True
+    assert client.is_read_only("unreal_spawn_actor") is False
