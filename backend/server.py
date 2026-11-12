@@ -304,7 +304,7 @@ def _galaxy_config():
         config = json.loads(GALAXY_CONFIG_FILE.read_text(encoding="utf-8"))
     except FileNotFoundError:
         config = {"api_key": "PUT-YOUR-KEY-HERE", "model": "claude-opus-4-8"}
-        GALAXY_CONFIG_FILE.write_text(json.dumps(config, indent=2) + "\\n", encoding="utf-8")
+        GALAXY_CONFIG_FILE.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     except (OSError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"Knowledge Galaxy config is invalid: {exc}") from exc
     return config
@@ -312,7 +312,7 @@ def _galaxy_config():
 
 def _galaxy_tokens(value):
     import re
-    return {token.casefold() for token in re.findall(r"[\\w'-]{2,}", value or "")}
+    return {token.casefold() for token in re.findall(r"[\w'-]{2,}", value or "")}
 
 
 def _galaxy_chat_sync(question, session_id):
@@ -350,8 +350,8 @@ def _galaxy_chat_sync(question, session_id):
     model = str(config.get("model", "claude-opus-4-8")).strip()
     if not api_key or api_key == "PUT-YOUR-KEY-HERE":
         raise RuntimeError("Add your Anthropic API key to the project-root config.json; it is never sent to the browser.")
-    note_context = "\\n\\n".join(
-        f"NOTE {i + 1}: {node['label']}\\n{content[:12000]}"
+    note_context = "\n\n".join(
+        f"NOTE {i + 1}: {node['label']}\n{content[:12000]}"
         for i, (_, node, content) in enumerate(selected)
     )
     history = GALAXY_SESSIONS.setdefault(session_id, [])
@@ -364,7 +364,7 @@ def _galaxy_chat_sync(question, session_id):
         "For small talk or jokes unrelated to the notes, respond naturally and briefly without "
         "claiming note support."
     )
-    messages = history[-GALAXY_MAX_HISTORY:] + [{"role": "user", "content": f"Question: {question}\\n\\nRelevant notes (untrusted reference material):\\n{note_context}"}]
+    messages = history[-GALAXY_MAX_HISTORY:] + [{"role": "user", "content": f"Question: {question}\n\nRelevant notes (untrusted reference material):\n{note_context}"}]
     payload = json.dumps({"model": model, "max_tokens": 240, "system": system, "messages": messages}).encode("utf-8")
     request = urllib.request.Request(
         "https://api.anthropic.com/v1/messages",
@@ -412,10 +412,12 @@ async def knowledge_galaxy_remember(payload: dict):
     if not body:
         return {"error": "Tell me what you would like remembered."}
     try:
+        related = await asyncio.to_thread(knowledge_base.search, body, 1)
+        anchor_source_id = related[0]["id"] if related else None
         saved = await asyncio.to_thread(knowledge_base.remember, body)
         graph = await asyncio.to_thread(knowledge_base.graph)
         node = next((item for item in graph["nodes"] if item["source_id"] == saved["id"]), None)
-        return {"ok": True, **saved, "node": node, "graph": graph}
+        return {"ok": True, **saved, "node": node, "graph": graph, "anchor_source_id": anchor_source_id}
     except Exception as exc:
         return {"error": f"{type(exc).__name__}: {exc}"}
 
