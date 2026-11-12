@@ -195,6 +195,10 @@ The following work has now been committed to `feature/ada-development-assistant-
 - Routed backend caches and Playwright browser storage into the project-local `.ada/` directories, including manual backend launches.
 - Copied MediaPipe WASM assets from the installed package into the Vite public assets during setup, replaced remote noise textures with a local SVG, and removed the Google Fonts CDN import.
 - Added `backend/knowledge_base.py`: local SQLite FTS index for Markdown, text, and PDF sources; stable numeric source IDs; wikilink/title-reference graph edges; durable Markdown captures; and immediate indexing after “remember that …”.
+- Added bounded full-source reading by ID, both as an assistant tool and in the Knowledge Galaxy panel, so Ada can read complete PDF/reference contents in chunks instead of relying only on excerpts.
+- Added `scripts/ai/download_gemma4_model.py` to place the Gemma 4 GGUF and matching projector in the project-local model directory with its Hugging Face cache contained in `.ada/`.
+- Added SHA-256 verification for the portable Node.js archive before extraction.
+
 - Connected knowledge retrieval and explicit memory capture to the assistant engine, and exposed local graph/search/reindex/capture API routes.
 - Added the Knowledge Galaxy window to the existing Ada UI, including graph rotation/zoom, search, reindex, and source excerpt/path inspection.
 - Exposed Gemma 4 as both a chat-capable and vision-capable model in the registry. K2 remains the default primary model.
