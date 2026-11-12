@@ -21,6 +21,7 @@ class ModelRuntimeError(RuntimeError):
 class LocalModelRuntime:
     def __init__(self, settings: dict[str, Any]):
         self.settings = settings
+        self.project_root = Path(__file__).resolve().parent.parent
         self.config = settings.setdefault("model_runtime", {})
         self.model: Any | None = None
         self.active_model_id: str | None = None
@@ -34,9 +35,17 @@ class LocalModelRuntime:
             if isinstance(model, dict) and model.get("id")
         }
 
-    @staticmethod
-    def _file_exists(value: Any) -> bool:
-        return bool(value and Path(str(value)).expanduser().is_file())
+    def _resolve_path(self, value: Any) -> Path | None:
+        if not value:
+            return None
+        path = Path(str(value)).expanduser()
+        if not path.is_absolute():
+            path = self.project_root / path
+        return path.resolve()
+
+    def _file_exists(self, value: Any) -> bool:
+        path = self._resolve_path(value)
+        return bool(path and path.is_file())
 
     def _runtime_status(self) -> tuple[bool, str | None, bool]:
         try:
@@ -94,15 +103,16 @@ class LocalModelRuntime:
 
     def _load_model_sync(self, model_config: dict[str, Any]):
         model_id = model_config["id"]
-        model_path = Path(str(model_config.get("model_path", ""))).expanduser()
-        if not model_path.is_file():
+        model_path = self._resolve_path(model_config.get("model_path"))
+        if model_path is None or not model_path.is_file():
             raise ModelRuntimeError(
                 f"GGUF model file is missing for '{model_config.get('name', model_id)}': {model_path}"
             )
 
         is_vision_model = model_id == self.config.get("vision_model_id")
         mmproj_path = model_config.get("mmproj_path")
-        if is_vision_model and (not mmproj_path or not Path(str(mmproj_path)).expanduser().is_file()):
+        resolved_mmproj_path = self._resolve_path(mmproj_path)
+        if is_vision_model and (resolved_mmproj_path is None or not resolved_mmproj_path.is_file()):
             raise ModelRuntimeError(
                 "The selected vision model requires its matching mmproj GGUF file."
             )
@@ -142,7 +152,7 @@ class LocalModelRuntime:
                 if handler_class is None:
                     raise ModelRuntimeError(f"Unknown multimodal chat handler: {handler_name}")
                 handler_args = {
-                    "clip_model_path": str(Path(str(mmproj_path)).expanduser()),
+                    "clip_model_path": str(resolved_mmproj_path),
                     "verbose": False,
                 }
                 try:
