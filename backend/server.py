@@ -658,7 +658,12 @@ async def update_settings(sid, data):
                  authenticator.stop() 
 
     if "voice" in data and isinstance(data["voice"], dict):
+        previous_provider = SETTINGS.get("voice", {}).get("provider", "local")
         SETTINGS["voice"] = {**SETTINGS.get("voice", {}), **data["voice"]}
+        local_voice_service.config = SETTINGS["voice"]
+        if SETTINGS["voice"].get("provider", "local") != previous_provider:
+            await local_voice_service.stop_all()
+            await gemini_voice_service.stop_all()
 
     if "camera_flipped" in data:
         SETTINGS["camera_flipped"] = data["camera_flipped"]
