@@ -508,9 +508,8 @@ function App() {
 
                 // 2. Initialize Vision
                 console.log("Initializing FilesetResolver...");
-                const vision = await FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
-                );
+                const visionWasmPath = new URL('./mediapipe/wasm/', window.location.href).href;
+                const vision = await FilesetResolver.forVisionTasks(visionWasmPath);
                 console.log("FilesetResolver initialized.");
 
                 // 3. Create Landmarker
