@@ -35,7 +35,7 @@ const ToolsModule = ({
                 pointerEvents: 'auto'
             }}
         >
-            <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-5 pointer-events-none mix-blend-overlay rounded-full"></div>
+            <div className="absolute inset-0 bg-[url('../noise.svg')] opacity-5 pointer-events-none mix-blend-overlay rounded-full"></div>
 
             <div className="flex justify-center gap-6 relative z-10">
                 {/* Power Button */}
