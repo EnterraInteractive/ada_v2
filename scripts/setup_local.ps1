@@ -73,7 +73,7 @@ if (-not $SkipNode) {
         throw "Node.js/npm is required for the React/Electron interface. Install Node.js, then rerun."
     }
     Write-Host "Installing frontend dependencies into node_modules..." -ForegroundColor Yellow
-    & npm --cache (Join-Path $CacheRoot "npm") ci
+    & npm ci --cache (Join-Path $CacheRoot "npm")
     if ($LASTEXITCODE -ne 0) { throw "npm ci failed." }
 }
 
