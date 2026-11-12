@@ -418,6 +418,7 @@ def _galaxy_chat_sync(question, session_id):
 
 
 @app.post("/chat")
+@app.post("/galaxy/chat")
 @app.post("/knowledge/chat")
 async def knowledge_galaxy_chat(payload: dict):
     data = payload or {}
@@ -430,6 +431,7 @@ async def knowledge_galaxy_chat(payload: dict):
 
 
 @app.post("/remember")
+@app.post("/galaxy/remember")
 @app.post("/knowledge/remember")
 async def knowledge_galaxy_remember(payload: dict):
     data = payload or {}
