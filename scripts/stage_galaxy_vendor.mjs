@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const version = "1.73.3";
+const expectedSha256 = "19b3be27040fc894e56d684d53c5f62526c25e5d27f37e8fe91fafff605e4ef4";
 const source = `https://unpkg.com/3d-force-graph@${version}/dist/3d-force-graph.min.js`;
 const target = resolve(root, "viewer/vendor/3d-force-graph.min.js");
 const manifest = resolve(root, "viewer/vendor/VERSIONS.txt");
@@ -20,7 +21,8 @@ async function validExisting() {
       && contents.includes("ForceGraph3D")
       && recorded.includes(`3d-force-graph ${version}`)
       && Boolean(expected)
-      && expected === actual;
+      && expected === expectedSha256
+      && actual === expectedSha256;
   } catch {
     return false;
   }
