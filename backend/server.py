@@ -27,7 +27,6 @@ from pathlib import Path
 # Default every runtime/cache location to the Ada project so manual backend
 # launches behave the same as Electron launches and do not fill the user profile.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-NETWORK_AUDIT_LOG = install_network_audit(PROJECT_ROOT)
 LOCAL_DATA_ROOT = PROJECT_ROOT / ".ada"
 LOCAL_CACHE_ROOT = LOCAL_DATA_ROOT / "cache"
 LOCAL_PATHS = {
@@ -70,6 +69,7 @@ from gemini_voice import GeminiVoiceService
 from local_voice import LocalVoiceService
 from voice_studio import VoiceStudioClient
 from network_audit import install as install_network_audit, record_browser_resources, read_events, clear_events
+NETWORK_AUDIT_LOG = install_network_audit(PROJECT_ROOT)
 
 # Create a Socket.IO server
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
