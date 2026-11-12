@@ -203,8 +203,7 @@ async def startup_event():
 
     browser_agent = WebAgent(on_update=browser_update)
     unreal_mcp_client = UnrealMCPClient(SETTINGS.get("unreal_mcp", {}))
-    connected = await unreal_mcp_client.connect()
-    print(f"[SERVER] Unreal MCP: {unreal_mcp_client.status()}")
+    print(f"[SERVER] Unreal MCP client configured: {unreal_mcp_client.status()} (connects lazily when needed)")
     assistant_engine = AssistantEngine(
         runtime=model_runtime,
         project_manager=project_manager,
