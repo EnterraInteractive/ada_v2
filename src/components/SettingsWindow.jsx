@@ -44,6 +44,7 @@ const SettingsWindow = ({
     const [faceAuthEnabled, setFaceAuthEnabled] = useState(false);
     const [workspacePath, setWorkspacePath] = useState('');
     const [modelRuntime, setModelRuntime] = useState({ primary_model_id: '', vision_model_id: '', models: [] });
+    const [modelRuntimeStatus, setModelRuntimeStatus] = useState({ runtime_available: false, runtime_error: '' });
     const [voiceSettings, setVoiceSettings] = useState({ model_size: 'base.en', vad_aggressiveness: 2 });
     const [unrealMcp, setUnrealMcp] = useState({ enabled: true, url: 'http://127.0.0.1:8000/mcp' });
     const [unrealMcpStatus, setUnrealMcpStatus] = useState({ connected: false, tool_count: 0 });
@@ -52,6 +53,7 @@ const SettingsWindow = ({
         // Request initial permissions
         socket.emit('get_settings');
         socket.emit('get_unreal_mcp_status');
+        socket.emit('get_model_status');
 
         // Listen for updates
         const handleSettings = (settings) => {
@@ -70,14 +72,17 @@ const SettingsWindow = ({
         };
 
         const handleUnrealMcpStatus = status => setUnrealMcpStatus(status || { connected: false });
+        const handleModelStatus = status => setModelRuntimeStatus(status || { runtime_available: false, runtime_error: '' });
         socket.on('settings', handleSettings);
         socket.on('unreal_mcp_status', handleUnrealMcpStatus);
+        socket.on('model_status', handleModelStatus);
         // Also listen for legacy tool_permissions if needed, but 'settings' covers it
         // socket.on('tool_permissions', handlePermissions); 
 
         return () => {
             socket.off('settings', handleSettings);
             socket.off('unreal_mcp_status', handleUnrealMcpStatus);
+            socket.off('model_status', handleModelStatus);
         };
     }, [socket]);
 
@@ -294,7 +299,10 @@ const SettingsWindow = ({
             {/* Local Model Registry */}
             <div className="mb-6 border-b border-cyan-900/50 pb-5">
                 <h3 className="text-cyan-400 font-bold mb-3 text-xs uppercase tracking-wider">Local Model Runtime</h3>
-                <p className="text-[10px] text-cyan-300/80 mb-3">Embedded llama-cpp-python runtime · inference runs inside A.D.A. No llama-server process or separate model app.</p>
+                <p className="text-[10px] text-cyan-300/80 mb-2">Embedded llama-cpp-python runtime · inference runs inside A.D.A. No llama-server process or separate model app.</p>
+                <p className={`text-[10px] mb-3 ${modelRuntimeStatus.runtime_available ? "text-green-400" : "text-amber-400"}`}>
+                    {modelRuntimeStatus.runtime_available ? "Native inference runtime is available." : (modelRuntimeStatus.runtime_error || "Install the CUDA-enabled runtime from requirements.txt.")}
+                </p>
 
                 <label className="block text-[10px] text-cyan-500/70 mb-1">Primary chat / coding model</label>
                 <select value={modelRuntime.primary_model_id || ''} onChange={e => setModelRuntime(prev => ({ ...prev, primary_model_id: e.target.value }))}
