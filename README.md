@@ -216,8 +216,8 @@ A.D.A loads llama.cpp directly into its own Python backend through `llama-cpp-py
 
 1. Install the NVIDIA CUDA 13.x Toolkit for the RTX 5070 if it is not already installed.
 2. Install the application dependencies with `python -m pip install -r requirements.txt`.
-3. Build the K2-compatible embedded inference runtime with `powershell -ExecutionPolicy Bypass -File scripts\\ai\\install_k2_runtime.ps1`. This builds `llama-cpp-python` against upstream llama.cpp b11454 with CUDA for the RTX 5070 (`sm_120`).
-4. Verify the native K2 loader with `python scripts\\ai\\verify_k2_runtime.py`.
+3. Build the K2-compatible embedded inference runtime with `powershell -ExecutionPolicy Bypass -File scripts\ai\install_k2_runtime.ps1`. This builds `llama-cpp-python` against upstream llama.cpp b11454 with CUDA for the RTX 5070 (`sm_120`).
+4. Verify the native K2 loader with `python scripts\ai\verify_k2_runtime.py`.
 5. Obtain the K2-Horizon 7B GGUF file and place it at `models/language/k2-horizon-7b/model.gguf`.
 6. Obtain the Gemma 4 12B Instruct GGUF and its matching multimodal projector, then place them at `models/vision/gemma-4-12b/model.gguf` and `models/vision/gemma-4-12b/mmproj.gguf`.
 7. Start A.D.A and open **Settings → Local Model Runtime**. The project-relative paths are preconfigured; use the file pickers only if you keep different filenames or locations.
@@ -227,7 +227,7 @@ A.D.A loads llama.cpp directly into its own Python backend through `llama-cpp-py
 **Runtime behavior**
 - Only one model is loaded at a time. When K2 requests image analysis, A.D.A unloads K2, loads Gemma 4, passes the actual image bytes, returns Gemma's findings to the same conversation, and reloads K2 for the next response.
 
-The K2 profile defaults to a 65,536-token context and 32,768-token output, with Q8 KV cache kept in system RAM to protect the 12 GB GPU memory. This trades some speed for context capacity. The context size and GPU-layer settings can be adjusted in the model registry. Change `cache_type_k`, `cache_type_v`, or `no_kv_offload` in `settings.local.json` if you want to tune the KV cache placement. The standard PyPI llama-cpp-python wheel does not include K2-Horizon support; use the project installer above. Run `python scripts\\ai\\verify_k2_runtime.py --full --tool-test` to test real GPU generation and parsed tool calls.
+The K2 profile defaults to a 65,536-token context and 32,768-token output, with Q8 KV cache kept in system RAM to protect the 12 GB GPU memory. This trades some speed for context capacity. The context size and GPU-layer settings can be adjusted in the model registry. Change `cache_type_k`, `cache_type_v`, or `no_kv_offload` in `settings.local.json` if you want to tune the KV cache placement. The standard PyPI llama-cpp-python wheel does not include K2-Horizon support; use the project installer above. Run `python scripts\ai\verify_k2_runtime.py --full --tool-test` to test real GPU generation and parsed tool calls.
 
 **K2 tool calling:** upstream llama.cpp b11454 adds K2-Horizon reasoning and tool-call support. A.D.A configures high reasoning effort and JSON tool formatting, and includes a local GPU/function-call verifier. After that passes, the actual Unreal Editor and browser tools still need an end-to-end smoke test in your environment.
 - Model paths, context sizes, GPU layers, and model roles are configurable. Additional GGUF models can be added to the registry.
