@@ -147,8 +147,8 @@ export default function KnowledgeGraphWindow({ onClose }) {
                     .showNavInfo(false)
                     .nodeId('id')
                     .nodeLabel(node => node.label || '')
-                    .nodeColor(node => highlighted.includes(Number(node.id)) ? '#fff0a8' : groupColor(node.group))
-                    .nodeVal(node => highlighted.includes(Number(node.id)) ? 7 : 3.5)
+                    .nodeColor(node => node.__pulseUntil > Date.now() ? '#ffffff' : highlighted.includes(Number(node.id)) ? '#fff0a8' : groupColor(node.group))
+                    .nodeVal(node => node.__pulseUntil > Date.now() ? 13 : highlighted.includes(Number(node.id)) ? 7 : 3.5)
                     .linkColor(() => 'rgba(90, 180, 220, 0.20)')
                     .linkOpacity(0.36)
                     .linkWidth(link => highlighted.includes(Number(link.source?.id ?? link.source)) && highlighted.includes(Number(link.target?.id ?? link.target)) ? 1.8 : 0.45)
@@ -177,14 +177,14 @@ export default function KnowledgeGraphWindow({ onClose }) {
 
     useEffect(() => {
         if (graphRef.current && graph.nodes.length) {
-            graphRef.current.nodeColor(node => highlighted.includes(Number(node.id)) ? '#fff0a8' : groupColor(node.group));
-            graphRef.current.nodeVal(node => highlighted.includes(Number(node.id)) ? 8 : 3.5);
+            graphRef.current.nodeColor(node => node.__pulseUntil > Date.now() ? '#ffffff' : highlighted.includes(Number(node.id)) ? '#fff0a8' : groupColor(node.group));
+            graphRef.current.nodeVal(node => node.__pulseUntil > Date.now() ? 13 : highlighted.includes(Number(node.id)) ? 8 : 3.5);
             graphRef.current.refresh();
         }
     }, [highlighted, graph.nodes.length]);
 
     useEffect(() => {
-        if (!graph.count || loading) return;
+        if (loading) return;
         speak('Good evening, sir. ' + graph.count + ' notes indexed, all present and accounted for.');
     }, [graph.count, loading, speak]);
 
@@ -205,9 +205,7 @@ export default function KnowledgeGraphWindow({ onClose }) {
                 });
                 const data = await response.json();
                 if (!response.ok || data.error) throw new Error(data.error || 'Memory capture failed.');
-                const current = graphRef.current?.graphData?.().nodes || [];
-                const best = current.find(node => node.id !== data.node?.id);
-                await loadGraph(data.id, best?.source_id ?? null);
+                await loadGraph(data.id, data.anchor_source_id ?? null);
                 const confirmation = 'Consider it filed, sir. My memory has grown another neuron; try not to make a habit of being interesting.';
                 setAnswer(confirmation);
                 speak(confirmation);
