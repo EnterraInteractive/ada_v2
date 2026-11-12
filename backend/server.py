@@ -170,7 +170,16 @@ unreal_mcp_client = None
 latest_uploaded_image = None
 latest_camera_image = None
 latest_image_name = None
-voice_service = GeminiVoiceService(lambda event, data, room: sio.emit(event, data, room=room))
+async def handle_voice_local_query(sid: str, prompt: str) -> str:
+    if not assistant_engine:
+        raise RuntimeError("A.D.A's local K2 assistant is not initialized.")
+    return await assistant_engine.respond(prompt, session_id=sid)
+
+
+voice_service = GeminiVoiceService(
+    lambda event, data, room: sio.emit(event, data, room=room),
+    local_query=handle_voice_local_query,
+)
 pending_tool_confirmations = {}
 
 def get_latest_image(source='latest'):
