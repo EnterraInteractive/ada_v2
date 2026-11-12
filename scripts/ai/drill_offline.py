@@ -7,6 +7,9 @@ from __future__ import annotations
 
 import argparse
 import array
+import base64
+import io
+import wave
 import json
 import re
 import sys
@@ -35,23 +38,33 @@ def request(url: str, payload: dict | None = None, timeout: int = 120) -> dict:
         return json.loads(response.read().decode("utf-8"))
 
 
-def pcm24_to_pcm16k(encoded: str) -> str:
-    source = array.array("h")
-    source.frombytes(__import__("base64").b64decode(encoded))
+def wav24_to_wav16k(wav_bytes: bytes) -> str:
+    with wave.open(io.BytesIO(wav_bytes), "rb") as source:
+        if source.getnchannels() != 1 or source.getsampwidth() != 2:
+            raise RuntimeError("The TTS response must be mono 16-bit PCM WAV.")
+        source_rate = source.getframerate()
+        samples = array.array("h")
+        samples.frombytes(source.readframes(source.getnframes()))
     if sys.byteorder != "little":
-        source.byteswap()
-    target_count = max(1, round(len(source) * 16000 / 24000))
+        samples.byteswap()
+    target_rate = 16000
+    target_count = max(1, round(len(samples) * target_rate / source_rate))
     target = array.array("h")
     for index in range(target_count):
-        position = index * 24000 / 16000
-        left = min(int(position), len(source) - 1)
-        right = min(left + 1, len(source) - 1)
+        position = index * source_rate / target_rate
+        left = min(int(position), len(samples) - 1)
+        right = min(left + 1, len(samples) - 1)
         fraction = position - left
-        target.append(int(source[left] * (1 - fraction) + source[right] * fraction))
+        target.append(int(samples[left] * (1 - fraction) + samples[right] * fraction))
     if sys.byteorder != "little":
         target.byteswap()
-    return __import__("base64").b64encode(target.tobytes()).decode("ascii")
-
+    output = io.BytesIO()
+    with wave.open(output, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(target_rate)
+        wav.writeframes(target.tobytes())
+    return base64.b64encode(output.getvalue()).decode("ascii")
 
 def run_browser(question: str) -> list[str]:
     from playwright.sync_api import sync_playwright
@@ -127,11 +140,20 @@ def main() -> int:
             raise RuntimeError("Local /chat returned an empty answer.")
         print("CHAT:", answer)
 
-        speech = request(BACKEND + "/speak", {"text": answer})
-        if speech.get("error") or not speech.get("audio_pcm16"):
-            raise RuntimeError("Local /speak failed: " + str(speech.get("error", "empty audio")))
+        speech_request = urllib.request.Request(
+            BACKEND + "/speak",
+            data=json.dumps({"text": answer}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(speech_request, timeout=120) as response:
+            speech_wav = response.read()
+            voice_receipt = response.headers.get("X-Jarvis-Voice", "unknown")
+        if len(speech_wav) < 44 or speech_wav[:4] != b"RIFF":
+            raise RuntimeError("Local /speak did not return a valid audio/wav response.")
+        print("VOICE:", voice_receipt)
         heard = request(BACKEND + "/hear", {
-            "audio_pcm16": pcm24_to_pcm16k(speech["audio_pcm16"]),
+            "audio_wav": wav24_to_wav16k(speech_wav),
             "mode": "command",
         })
         if heard.get("error"):
