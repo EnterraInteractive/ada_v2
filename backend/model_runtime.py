@@ -160,7 +160,7 @@ class LocalModelRuntime:
             "n_ctx": int(model_config.get("context_size", 32768)),
             "n_batch": int(model_config.get("batch_size", 512)),
             "verbose": False,
-            "flash_attn": bool(model_config.get("flash_attn", True)),
+            "flash_attn": bool(model_config.get("flash_attn", True)) and requested_gpu_layers != 0,
             "use_mmap": True,
         }
         if model_config.get("threads"):
