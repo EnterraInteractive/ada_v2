@@ -266,12 +266,12 @@ def brain_status():
 async def switch_brain(name: str):
     global ACTIVE_BRAIN
     name = (name or "").strip().casefold()
-    model_id = BRAIN_PROFILES.get(name)
-    if not model_id:
-        return {"ok": False, "error": f"The {name} brain is not configured."}
+    model_id = BRAIN_PROFILES.get(name) or name
     model = model_runtime.registry().get(model_id)
     if not model:
-        return {"ok": False, "error": f"Model '{model_id}' is not registered locally."}
+        return {"ok": False, "error": f"The {name} brain is not configured in the local model registry."}
+    if "chat" not in model.get("capabilities", ["chat"]):
+        return {"ok": False, "error": f"Model '{model_id}' is not registered for chat."}
     model_path = model_runtime._resolve_path(model.get("model_path"))
     if model_path is None or not model_path.is_file():
         return {"ok": False, "error": f"The {model.get('name', model_id)} model file is not installed locally."}
@@ -291,6 +291,10 @@ async def intercept_brain_command(prompt: str):
     if re.search(r"\b(switch to|use) (your )?big brain\b", value):
         state = await switch_brain("big")
         return f"The big brain is now engaged, sir: {state['model_name']}." if state["ok"] else state["error"]
+    custom_model = re.search(r"\b(?:switch to|use) model ([a-z0-9._-]+)\b", value)
+    if custom_model:
+        state = await switch_brain(custom_model.group(1))
+        return f"Model switched, sir: {state['model_name']}." if state["ok"] else state["error"]
     if re.search(r"\b(switch to )?claude\b", value):
         return "The cloud brain is not enabled in this offline build, sir. I shall remain entirely local."
     return None
