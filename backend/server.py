@@ -608,6 +608,8 @@ async def _galaxy_chat(question, session_id):
             "nodes": [],
             "note_count": len(nodes),
             "used_notes": [],
+            "brain": brain_status(),
+            "voice_mode": VOICE_MODE,
         }
 
     note_context = "\n\n".join(
@@ -630,7 +632,11 @@ async def _galaxy_chat(question, session_id):
     choice = (result.get("choices") or [{}])[0]
     answer = str((choice.get("message") or {}).get("content") or "").strip()
     if not answer:
-        raise RuntimeError("The local model returned an empty answer.")
+        result = await model_runtime.chat(messages=messages, max_tokens=1000)
+        choice = (result.get("choices") or [{}])[0]
+        answer = str((choice.get("message") or {}).get("content") or "").strip()
+    if not answer:
+        raise RuntimeError("The local model returned an empty answer after one retry.")
     history.extend([
         {"role": "user", "content": question},
         {"role": "assistant", "content": answer},
