@@ -65,6 +65,10 @@ def test_offline_galaxy_viewer_uses_local_assets_and_local_hearing():
     assert "function toggleHandsFree" in viewer
     assert "function addNote" in viewer
     assert "function speechChunks" in viewer
+    assert "audio_wav" in viewer
+    assert "decodeAudioData" in viewer
+    assert "speechSynthesis" in viewer
+    assert "localService" in viewer
     assert "/hear" in viewer and "/speak" in viewer
 
 
@@ -108,6 +112,10 @@ def test_voice_studio_adapter_caches_locally_and_uses_loopback():
     assert '"/v1/audio/speech"' in source
     assert '".ada" / "cache" / "voice"' in source
     assert "Standing by." in source
+    backend = (root / "backend" / "server.py").read_text(encoding="utf-8")
+    assert 'data.get("audio_wav")' in backend
+    assert 'media_type="audio/wav"' in backend
+    assert 'X-Jarvis-Voice' in backend
 
 
 def test_offline_network_audit_and_drill_are_present():
