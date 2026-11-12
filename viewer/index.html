@@ -68,29 +68,37 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
    }
    if(current)chunks.push(current);return chunks;
  }
- async function fetchSpeech(text){
+ async function fetchSpeech(text,provider=null){
    const response=await fetch('/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
    if(!response.ok)throw new Error(await response.text()||'local speech request failed');
    return {audio:await response.arrayBuffer(),provider:response.headers.get('X-Jarvis-Voice')||'local voice'};
  }
+ async function playSpeechChunks(text,provider=null){
+   const chunks=speechChunks(text);let pending=fetchSpeech(chunks[0],provider);
+   for(let i=0;i<chunks.length;i++){
+     const result=await pending;
+     status('● SPEAKING · LOCAL VOICE');
+     if(result.provider)$('brainBadge').textContent='BRAIN '+(lastBrainId||'local')+' · VOICE '+result.provider;
+     $('brainBadge').classList.add('visible');if(brainTimer)clearTimeout(brainTimer);brainTimer=setTimeout(()=>$('brainBadge').classList.remove('visible'),5000);
+     const following=i+1<chunks.length?fetchSpeech(chunks[i+1],provider):null;
+     await playWav(result.audio);pending=following;
+   }
+ }
  async function speak(text){
    if(muted||!voiceOn||!text)return;
    if(!interacted){pendingSpeech=text;return;}
-   if(activeVoiceMode==='browser'&&await speakBrowserLocal(text))return;
-   try{
-     const chunks=speechChunks(text);let pending=fetchSpeech(chunks[0]);
-     for(let i=0;i<chunks.length;i++){
-       const result=await pending;
-       status('● SPEAKING · LOCAL VOICE');
-       if(result.provider)$('brainBadge').textContent='BRAIN '+(lastBrainId||'local')+' · VOICE '+result.provider;
-       $('brainBadge').classList.add('visible');if(brainTimer)clearTimeout(brainTimer);brainTimer=setTimeout(()=>$('brainBadge').classList.remove('visible'),5000);
-       const following=i+1<chunks.length?fetchSpeech(chunks[i+1]):null;
-       await playWav(result.audio);
-       pending=following;
-     }
-   }catch(e){
+   if(activeVoiceMode==='browser'){
      if(await speakBrowserLocal(text))return;
-     status('VOICE UNAVAILABLE · '+(e.message||'no local voice engine is ready'));
+     activeVoiceMode='piper';setVoiceBadge('piper');
+     try{await playSpeechChunks(text,'piper');}catch(e){status('VOICE UNAVAILABLE · '+(e.message||'no local voice engine is ready'));}
+     return;
+   }
+   try{
+     await playSpeechChunks(text,activeVoiceMode==='piper'?'piper':null);
+   }catch(e){
+     if(await speakBrowserLocal(text)){activeVoiceMode='browser';return;}
+     try{activeVoiceMode='piper';setVoiceBadge('piper');await playSpeechChunks(text,'piper');}
+     catch(fallbackError){status('VOICE UNAVAILABLE · '+(fallbackError.message||e.message||'no local voice engine is ready'));}
    }
  } function interaction(){interacted=true;if(pendingSpeech){const p=pendingSpeech;pendingSpeech='';speak(p);}}
  function setVoiceBadge(mode){
