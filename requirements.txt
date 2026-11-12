@@ -11,9 +11,8 @@ mediapipe
 # Unreal Editor integration (MCP client; connects to the existing Unreal MCP server)
 mcp>=1.10,<2
 
-# Embedded inference runtime (CUDA 13.0 wheels support RTX 50-series / Blackwell)
---extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130
-llama-cpp-python>=0.3.36,<0.4
+# Embedded inference runtime is built from the K2-compatible llama.cpp source.
+# Install it with scripts/ai/install_k2_runtime.ps1 after installing these app dependencies.
 
 # Gemini Live API voice (remote streaming; no local voice model)
 google-genai>=1.30.0,<2
