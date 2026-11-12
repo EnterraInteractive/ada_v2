@@ -79,18 +79,26 @@ class GalaxyHandler(BaseHTTPRequestHandler):
         self.wfile.write(content)
 
     def do_POST(self):
-        if self.path not in {"/chat", "/remember", "/hear", "/speak"}:
+        if self.path not in {"/chat", "/remember", "/hear", "/speak", "/network-audit"}:
             self.send_error(404)
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            if length < 1 or length > 64 * 1024:
-                self._json(400, {"error": "Request must be between 1 byte and 64 KB."})
+            max_length = 14 * 1024 * 1024 if self.path == "/hear" else 64 * 1024
+            if length < 1 or length > max_length:
+                self._json(400, {"error": "Request body is empty or exceeds the endpoint size limit."})
                 return
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("JSON body must be an object.")
-            if self.path in {"/hear", "/speak"}:\n                self._json(200, self._backend(self.path, payload))\n                return\n\n            if self.path == "/chat":
+            if self.path in {"/hear", "/speak"}:
+                self._json(200, self._backend(self.path, payload))
+                return
+            if self.path == "/network-audit":
+                self._json(200, self._backend("/network-audit/browser", payload))
+                return
+
+            if self.path == "/chat":
                 result = self._backend("/chat", payload)
                 graph = build_graph()
                 path_to_index = {str(Path(node["path"]).resolve()).casefold(): node["id"] for node in graph["nodes"]}
