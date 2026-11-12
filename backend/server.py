@@ -308,6 +308,17 @@ unreal_mcp_client = None
 latest_uploaded_image = None
 latest_camera_image = None
 latest_image_name = None
+async def intercept_remember_command(prompt: str):
+    value = (prompt or "").strip()
+    if not re.match(r"^remember that\\b", value, re.IGNORECASE):
+        return None
+    result = await knowledge_galaxy_remember({"text": value})
+    if result.get("error"):
+        return f"I could not save that note, sir: {result['error']}"
+    title = result.get("title") or "your new note"
+    return f"Captured, sir. {title} is saved, indexed, and visible in the Knowledge Galaxy."
+
+
 def voice_status():
     if SETTINGS.get("voice_studio", {}).get("enabled", True):
         return {"provider": "voicestudio", "profile": ACTIVE_VOICE, "fallback": "piper"}
@@ -347,6 +358,9 @@ async def intercept_voice_command(prompt: str):
 
 
 async def handle_voice_local_query(sid: str, prompt: str) -> str:
+    remember_command = await intercept_remember_command(prompt)
+    if remember_command:
+        return remember_command
     voice_command = await intercept_voice_command(prompt)
     if voice_command:
         return voice_command
@@ -533,6 +547,9 @@ async def _galaxy_chat(question, session_id):
             if re.search(pattern, question, re.IGNORECASE):
                 return {"answer": reply, "nodes": [], "note_count": len(nodes), "used_notes": []}
 
+    remember_command = await intercept_remember_command(question)
+    if remember_command:
+        return {"answer": remember_command, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status()}
     voice_command = await intercept_voice_command(question)
     if voice_command:
         return {"answer": voice_command, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status()}
@@ -945,7 +962,9 @@ async def user_input(sid, data):
 
     await sio.emit("assistant_status", {"state": "thinking"}, room=sid)
     try:
-        answer = await intercept_voice_command(text)
+        answer = await intercept_remember_command(text)
+        if answer is None:
+            answer = await intercept_voice_command(text)
         if answer is None:
             answer = await intercept_brain_command(text)
         if answer is None:
