@@ -45,7 +45,7 @@ class GeminiVoiceService:
     def model_name() -> str:
         return os.getenv("GEMINI_LIVE_MODEL", "gemini-3.8-live").strip()
 
-    async def start(self, sid: str) -> None:
+    async def start(self, sid: str, model_name: str | None = None) -> None:
         if sid in self.sessions:
             return
         api_key = os.getenv("GEMINI_API_KEY", "").strip()
@@ -70,7 +70,7 @@ class GeminiVoiceService:
                 output_audio_transcription=types.AudioTranscriptionConfig(),
             )
             session = await stack.enter_async_context(
-                client.aio.live.connect(model=self.model_name(), config=config)
+                client.aio.live.connect(model=(model_name or self.model_name()), config=config)
             )
             voice_session = VoiceSession(
                 sid=sid, client=client, stack=stack, session=session
@@ -78,7 +78,7 @@ class GeminiVoiceService:
             self.sessions[sid] = voice_session
             voice_session.sender_task = asyncio.create_task(self._send_audio(voice_session))
             voice_session.receiver_task = asyncio.create_task(self._receive(voice_session))
-            await self.emit("voice_ready", {"model": self.model_name()}, sid)
+            await self.emit("voice_ready", {"model": model_name or self.model_name()}, sid)
         except Exception:
             await stack.aclose()
             raise
@@ -131,7 +131,7 @@ class GeminiVoiceService:
                 output_transcription = _value(server_content, "output_transcription")
                 output_text = _value(output_transcription, "text", "")
                 if output_text:
-                    await self.emit("voice_transcription", {
+                    await self.emit("transcription", {
                         "sender": "ADA", "text": output_text, "final": True
                     }, voice_session.sid)
 
