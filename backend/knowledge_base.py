@@ -151,7 +151,7 @@ class KnowledgeBase:
                     (document_id, title, content),
                 )
                 return document_id
-        except (OSError, UnicodeError, ValueError, RuntimeError) as exc:
+        except Exception as exc:
             print(f"[KNOWLEDGE] Skipped {path}: {type(exc).__name__}: {exc}")
             return None
 
