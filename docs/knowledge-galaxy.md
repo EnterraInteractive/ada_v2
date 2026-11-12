@@ -26,7 +26,7 @@ Retrieval ranks Markdown notes by keyword overlap and weights title matches more
 
 ## Local hearing
 
-The standalone viewer uses `getUserMedia` and local PCM capture; it does not use Web Speech Recognition or a hosted transcription API.
+The standalone viewer uses `getUserMedia`, resamples the microphone to mono 16-bit 16 kHz WAV, and posts it to `/hear`; it does not use Web Speech Recognition or a hosted transcription API. `/speak` returns raw `audio/wav` and an `X-Jarvis-Voice` header.
 
 - Push-to-talk sends the captured utterance directly to the large local Whisper command model.
 - Hands-free mode uses the small local Whisper model to detect "Jarvis" / "Hey Jarvis". Utterances without the wake word are discarded. A wake word without a command prompts "Yes, sir?" and treats the next utterance as the command.
@@ -41,7 +41,7 @@ The main Ada voice service uses the large Whisper model for command transcriptio
 - VoiceStudio is configured at `http://127.0.0.1:3900`, with the Windows VoxCPM2 engine and a profile named `Jarvis`.
 - The adapter selects the configured TTS engine, looks up the profile by name, calls the local OpenAI-compatible speech endpoint, caches WAVs by text and profile under `.ada/cache/voice/`, and warms the engine with "Standing by." at startup/after idle intervals.
 - Answers are split into sentence-packed chunks of about 170 characters. The next chunk is fetched while the current chunk plays; sentences are never split to chase first-audio latency.
-- If VoiceStudio is unavailable, Ada uses the project-local Piper voice. Voice commands can switch between the cloned profile and Piper, or select another VoiceStudio profile by name.
+- If VoiceStudio is unavailable, Ada uses the project-local Piper voice. If both local engines fail, the viewer can use only a browser speech voice marked `localService`; it never selects a network voice. Voice commands can switch among the cloned profile, Piper, and local browser voice, or select another VoiceStudio profile by name.
 - `?mute=1` prevents every playback path in the viewer while leaving local hearing available.
 
 VoiceStudio's app is installed under `.ada/tools/VoiceStudio` by `scripts/ai/install_voicestudio.ps1`. Its Python environment, model weights, profiles, and data are directed to `.ada/voicestudio-data/` by `scripts/run_voicestudio.ps1`. The first VoiceStudio launch still requires installing its local runtime, selecting VoxCPM2, and creating a Jarvis profile from a voice recording you have permission to use.
