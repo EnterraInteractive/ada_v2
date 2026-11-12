@@ -153,7 +153,8 @@ DEFAULT_SETTINGS = {
         ]
     },
     "voice": {"provider": "local", "enabled": True, "whisper_model_path": "models/voice/whisper-small", "piper_model_path": "models/voice/piper/en_US-lessac-medium.onnx", "whisper_device": "cuda", "whisper_compute_type": "float16"},
-    "voice_studio": {"enabled": True, "url": "http://127.0.0.1:3900", "engine": "voxcpm2", "model_id": "voxcpm2", "profile": "Jarvis", "language": "en"}
+    "voice_studio": {"enabled": True, "url": "http://127.0.0.1:3900", "engine": "voxcpm2", "model_id": "voxcpm2", "profile": "Jarvis", "language": "en"},
+    "brain_profiles": {"boot_brain": "local", "local": "k2-horizon-7b", "big": "gemma-4-12b"}
 }
 
 SETTINGS = copy.deepcopy(DEFAULT_SETTINGS)
@@ -192,6 +193,8 @@ def load_settings():
                          SETTINGS["model_runtime"].update(runtime_values)
                          for legacy_key in ("executable", "host", "port", "startup_timeout_seconds"):
                              SETTINGS["model_runtime"].pop(legacy_key, None)
+                    elif k == "brain_profiles" and isinstance(v, dict):
+                        SETTINGS["brain_profiles"].update(v)
                     elif k == "voice_studio" and isinstance(v, dict):
                         SETTINGS["voice_studio"].update(v)
                     elif k == "voice" and isinstance(v, dict):
