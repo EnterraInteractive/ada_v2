@@ -131,10 +131,10 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
    }
    const bytes=new Uint8Array(pcm.buffer);let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(binary);
  }
- async function transcribeFrames(frames){
+ async function transcribeFrames(frames,mode='command'){
    if(!frames.length)return '';
    const audioPcm=resamplePcm(frames,micContext?.sampleRate||48000);
-   const response=await fetch('/hear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({audio_pcm16:audioPcm})});
+   const response=await fetch('/hear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({audio_pcm16:audioPcm,mode})});
    const result=await response.json();if(result.error)throw new Error(result.error);return (result.transcript||'').trim();
  }
  async function stopMicrophone(){
@@ -147,17 +147,22 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  }
  async function dispatchHandsFree(frames){
    try{
-     const transcript=await transcribeFrames(frames);if(!transcript)return;
-     status('HEARD · '+transcript.slice(0,100));
      if(currentSource){
-       if(/\\b(stop|wait)\\b/i.test(transcript)){try{currentSource.stop();}catch{}currentSource=null;status('SPEECH INTERRUPTED');}
+       const interruptText=await transcribeFrames(frames,'wake');
+       if(/\\b(stop|wait)\\b/i.test(interruptText)){try{currentSource.stop();}catch{}currentSource=null;status('SPEECH INTERRUPTED');}
        return;
      }
-     if(awaitingWakeCommand){awaitingWakeCommand=false;await ask(transcript);return;}
-     const match=transcript.match(/^(?:hey\\s+)?jarvis[,.! ]*(.*)$/i);
-     if(!match)return; // Wake-word mode discards everything else.
-     const command=(match[1]||'').trim();
-     if(!command){awaitingWakeCommand=true;await speak('Yes, sir?');status('LISTENING FOR YOUR COMMAND');return;}
+     if(awaitingWakeCommand){
+       awaitingWakeCommand=false;const command=await transcribeFrames(frames,'command');
+       if(command)await ask(command);return;
+     }
+     const wakeText=await transcribeFrames(frames,'wake');
+     const wakeMatch=wakeText.match(/^(?:hey\\s+)?jarvis[,.! ]*(.*)$/i);
+     if(!wakeMatch)return; // The small model discards speech without the wake word.
+     const wakeCommand=(wakeMatch[1]||'').trim();
+     if(!wakeCommand){awaitingWakeCommand=true;await speak('Yes, sir?');status('LISTENING FOR YOUR COMMAND');return;}
+     const commandText=await transcribeFrames(frames,'command');
+     const command=commandText.replace(/^(?:hey\\s+)?jarvis[,.! ]*/i,'').trim()||wakeCommand;
      await ask(command);
    }catch(e){error('Local hearing: '+(e.message||'transcription failed'));status('HEARING ERROR');}
  }
