@@ -83,12 +83,10 @@ graph TB
 
 ```bash
 # 1. Clone and enter
-git clone https://github.com/EnterraInteractive/ada_v2.git && cd ada_v2
+git clone --branch feature/ada-development-assistant-strip https://github.com/EnterraInteractive/ada_v2.git && cd ada_v2
 
-# 2. Create Python environment (Python 3.11)
-conda create -n ada_v2 python=3.11 -y && conda activate ada_v2
-pip install -r requirements.txt
-playwright install chromium
+# 2. Create the project-local Python environment, caches, and browser runtime
+powershell -ExecutionPolicy Bypass -File scripts\setup_local.ps1
 
 # 3. Configure Gemini Live API voice (optional)
 # Copy .env.example to .env and set GEMINI_API_KEY in .env
@@ -99,7 +97,7 @@ npm install
 
 
 # 5. Run!
-conda activate ada_v2 && npm run dev
+npm run dev
 ```
 
 </details>
@@ -114,10 +112,9 @@ If you have never coded before, follow these steps first!
 **Step 1: Install Visual Studio Code (The Editor)**
 - Download and install [VS Code](https://code.visualstudio.com/). This is where you will write code and run commands.
 
-**Step 2: Install Anaconda (The Manager)**
-- Download [Miniconda](https://docs.conda.io/en/latest/miniconda.html) (a lightweight version of Anaconda).
-- This tool allows us to create isolated "playgrounds" (environments) for our code so different projects don't break each other.
-- **Windows Users**: During install, check "Add Anaconda to my PATH environment variable" (even if it says not recommended, it makes things easier for beginners).
+**Step 2: Install Python 3.11 (The Runtime)**
+- Install Python 3.11 for Windows and ensure the Python Launcher (`py`) is available.
+- A.D.A creates its own `.venv` inside the repository; Python packages are installed there instead of a global or Conda environment.
 
 **Step 3: Install Git (The Downloader)**
 - **Windows**: Download [Git for Windows](https://git-scm.com/download/win).
@@ -127,7 +124,7 @@ If you have never coded before, follow these steps first!
 1. Open your terminal (or Command Prompt on Windows).
 2. Type this command and hit Enter:
    ```bash
-   git clone https://github.com/nazirlouis/ada_v2.git
+   git clone --branch feature/ada-development-assistant-strip https://github.com/EnterraInteractive/ada_v2.git
    ```
 3. This creates a folder named `ada_v2`.
 
@@ -152,18 +149,13 @@ Once you have the basics above, continue here.
 - No additional system dependencies required!
 
 ### 2. Python Environment
-Create a single Python 3.11 environment:
+From the repository root, create the project-local `.venv`, install Python dependencies, and download Chromium into `.ada`:
 
-```bash
-conda create -n ada_v2 python=3.11
-conda activate ada_v2
-
-# Install all dependencies
-pip install -r requirements.txt
-
-# Install Playwright browsers
-playwright install chromium
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup_local.ps1
 ```
+
+The script places Python packages in `.venv`, pip/Hugging Face caches in `.ada\cache`, and Playwright Chromium in `.ada\browsers`.
 
 ### 3. Frontend Setup
 Requires **Node.js 18+** and **npm**. Download from [nodejs.org](https://nodejs.org/) if not installed.
@@ -215,10 +207,10 @@ A.D.A's own backend listens on `127.0.0.1:8001`; port 8000 remains available for
 A.D.A loads llama.cpp directly into its own Python backend through `llama-cpp-python`. There is no `llama-server.exe`, model HTTP server, Ollama, Docker, or separate inference process.
 
 1. Install the NVIDIA CUDA 13.x Toolkit for the RTX 5070 if it is not already installed.
-2. Install the application dependencies with `python -m pip install -r requirements.txt`.
+2. Install the application dependencies with `powershell -ExecutionPolicy Bypass -File scripts\setup_local.ps1`.
 3. Build the K2-compatible embedded inference runtime with `powershell -ExecutionPolicy Bypass -File scripts\ai\install_k2_runtime.ps1`. This builds `llama-cpp-python` against upstream llama.cpp b11454 with CUDA for the RTX 5070 (`sm_120`).
-4. Download the default Q4_K_M K2-Horizon GGUF directly into the project with `python scripts\ai\download_k2_model.py`, or place your existing GGUF at `models/language/k2-horizon-7b/model.gguf`.
-5. Verify the native K2 loader with `python scripts\ai\verify_k2_runtime.py`.
+4. Download the default Q4_K_M K2-Horizon GGUF directly into the project with `.venv\Scripts\python.exe scripts\ai\download_k2_model.py`, or place your existing GGUF at `models/language/k2-horizon-7b/model.gguf`.
+5. Verify the native K2 loader with `.venv\Scripts\python.exe scripts\ai\verify_k2_runtime.py`.
 6. Obtain the Gemma 4 12B Instruct GGUF and its matching multimodal projector, then place them at `models/vision/gemma-4-12b/model.gguf` and `models/vision/gemma-4-12b/mmproj.gguf`.
 7. Start A.D.A and open **Settings → Local Model Runtime**. The project-relative paths are preconfigured; use the file pickers only if you keep different filenames or locations.
 8. Confirm K2 is the primary model and Gemma 4 is the vision delegate, then save.
@@ -227,7 +219,7 @@ A.D.A loads llama.cpp directly into its own Python backend through `llama-cpp-py
 **Runtime behavior**
 - Only one model is loaded at a time. When K2 requests image analysis, A.D.A unloads K2, loads Gemma 4, passes the actual image bytes, returns Gemma's findings to the same conversation, and reloads K2 for the next response.
 
-The K2 profile defaults to a 65,536-token context and 32,768-token output, with Q8 KV cache kept in system RAM to protect the 12 GB GPU memory. This trades some speed for context capacity. The context size and GPU-layer settings can be adjusted in the model registry. Change `cache_type_k`, `cache_type_v`, or `no_kv_offload` in `settings.local.json` if you want to tune the KV cache placement. The standard PyPI llama-cpp-python wheel does not include K2-Horizon support; use the project installer above. Run `python scripts\ai\verify_k2_runtime.py --full --tool-test` to test real GPU generation and parsed tool calls.
+The K2 profile defaults to a 65,536-token context and 32,768-token output, with Q8 KV cache kept in system RAM to protect the 12 GB GPU memory. This trades some speed for context capacity. The context size and GPU-layer settings can be adjusted in the model registry. Change `cache_type_k`, `cache_type_v`, or `no_kv_offload` in `settings.local.json` if you want to tune the KV cache placement. The standard PyPI llama-cpp-python wheel does not include K2-Horizon support; use the project installer above. Run `.venv\Scripts\python.exe scripts\ai\verify_k2_runtime.py --full --tool-test` to test real GPU generation and parsed tool calls.
 
 **K2 tool calling:** upstream llama.cpp b11454 adds K2-Horizon reasoning and tool-call support. A.D.A configures high reasoning effort and JSON tool formatting, and includes a local GPU/function-call verifier. After that passes, the actual Unreal Editor and browser tools still need an end-to-end smoke test in your environment.
 - Model paths, context sizes, GPU layers, and model roles are configurable. Additional GGUF models can be added to the registry.
@@ -248,8 +240,7 @@ The K2 profile defaults to a 65,536-token context and 32,768-token output, with 
 ### Option 1: The "Easy" Way (Single Terminal)
 The app is smart enough to start the backend for you.
 1. Open your terminal in the `ada_v2` folder.
-2. Activate your environment: `conda activate ada_v2`
-3. Run:
+2. Run:
    ```bash
    npm run dev
    ```
@@ -260,8 +251,7 @@ Use this if you want to see the Python logs (recommended for debugging).
 
 **Terminal 1 (Backend):**
 ```bash
-conda activate ada_v2
-python backend/server.py
+.venv\Scripts\python.exe backend\server.py
 ```
 
 **Terminal 2 (Frontend):**
@@ -306,11 +296,11 @@ npm run dev
 **Symptoms**: A.D.A reports that the embedded inference runtime is unavailable, a GGUF file is missing, or the model fails to load.
 
 **Solution**:
-1. Run `python scripts\ai\verify_k2_runtime.py` to confirm the installed native backend recognizes the K2 GGUF.
+1. Run `.venv\Scripts\python.exe scripts\ai\verify_k2_runtime.py` to confirm the installed native backend recognizes the K2 GGUF.
 2. If the K2 backend is missing or has no GPU support, run `powershell -ExecutionPolicy Bypass -File scripts\ai\install_k2_runtime.ps1` from the project root.
 3. Verify the selected K2/Gemma GGUF paths and Gemma mmproj path in Settings.
 4. Check the A.D.A backend console for the native runtime or CUDA loading error.
-5. Run `python scripts\ai\verify_k2_runtime.py --full --tool-test` to isolate generation and tool-call issues before testing the full app.
+5. Run `.venv\Scripts\python.exe scripts\ai\verify_k2_runtime.py --full --tool-test` to isolate generation and tool-call issues before testing the full app.
 
 
 
@@ -375,7 +365,7 @@ Contributions are welcome! Here's how:
 
 ### Development Tips
 
-- Run the backend separately (`python backend/server.py`) to see Python logs.
+- Run the backend separately (`.venv\Scripts\python.exe backend\server.py`) to see Python logs.
 - Use `npm run dev` without Electron during frontend development (faster reload).
 - The `projects/` folder contains user data—don't commit it to Git.
 
