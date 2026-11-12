@@ -113,7 +113,7 @@ class LocalVoiceService:
         async with self._load_lock:
             if self._whisper is not None:
                 return
-            whisper_path = self._model_path("whisper_model_path", "models/voice/whisper-small")
+            whisper_path = self._model_path("whisper_model_path", "models/voice/whisper-large-v3-turbo")
             if not whisper_path.exists():
                 raise RuntimeError(f"Local Whisper model is missing: {whisper_path}")
 
