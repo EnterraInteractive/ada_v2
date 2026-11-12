@@ -70,6 +70,15 @@ After setup and the one-time VoiceStudio profile creation, launch the whole loca
 
 The drill performs a real local `/chat`, synthesizes the answer through `/speak`, feeds that audio through `/hear`, opens the viewer in a muted Playwright tab, captures browser resource hosts, prints server connection reasons, and lists external URLs found in setup and optional integration code. Any non-loopback server connection or missing speech transcript fails the drill.
 
-## Release verification still required
+## Verification status
 
-The implementation is in place, but it is not labelled verified until the current branch's CI run passes and the end-to-end drill has been run with the actual local models and VoiceStudio runtime. A final Wi-Fi-disabled run on the target Windows machine is also required; source inspection alone is not proof that every installed runtime behaves offline.
+Repository CI passed on commit `d04855bed8db2b1b06095c0428068f7e5622c316` (12 November 2026): Python backend compilation and tests, Electron renderer production build, and standalone Knowledge Galaxy JavaScript validation all succeeded.
+
+The following are implemented in the repository but remain **machine-dependent acceptance checks**, not claims of verified operation:
+
+- K2-Horizon and Gemma 4 model downloads and GPU inference on the target RTX 5070.
+- VoiceStudio's first-run local runtime installation and creation of the `Jarvis` profile from an authorized voice recording.
+- The complete `scripts/ai/drill_offline.py` run with the installed local models and voice services.
+- A final run with Wi-Fi disabled, confirming all runtime requests remain on loopback.
+
+The VoiceStudio profile cannot be pre-created by a source-code change: it requires the user's own authorized voice recording and VoiceStudio's local profile-creation workflow. The NVIDIA driver is also an operating-system prerequisite; project-managed runtimes, weights, caches, and application data are otherwise directed into the repository.
