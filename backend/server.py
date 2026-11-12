@@ -424,6 +424,21 @@ async def startup_event():
         knowledge=knowledge_base,
     )
 
+    async def warm_local_speech():
+        try:
+            await local_voice_service.warm_hearing_models()
+            print("[VOICE] Local Whisper wake and command models warmed.")
+        except Exception as exc:
+            print(f"[VOICE] Whisper warm-up deferred: {type(exc).__name__}: {exc}")
+        if SETTINGS.get("voice_studio", {}).get("enabled", True):
+            try:
+                await asyncio.to_thread(voice_studio_service.warm)
+                print("[VOICE] VoiceStudio engine and Jarvis profile warmed.")
+            except Exception as exc:
+                print(f"[VOICE] VoiceStudio is not ready; local Piper fallback remains available: {type(exc).__name__}: {exc}")
+
+    asyncio.create_task(warm_local_speech())
+
 
 def _galaxy_read_full(source_id):
     chunks = []
