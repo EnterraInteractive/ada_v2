@@ -1,0 +1,5 @@
+3d-force-graph 1.73.3
+Source: https://unpkg.com/3d-force-graph@1.73.3/dist/3d-force-graph.min.js
+Staged to: viewer/vendor/3d-force-graph.min.js
+SHA-256: populated by scripts/stage_galaxy_vendor.mjs after download
+Runtime: local file; the browser does not request a CDN.
