@@ -30,6 +30,8 @@ from assistant_engine import AssistantEngine
 from project_manager import ProjectManager
 from web_agent import WebAgent
 from unreal_mcp import UnrealMCPClient
+from dotenv import load_dotenv
+from gemini_voice import GeminiVoiceService
 
 # Create a Socket.IO server
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
@@ -41,12 +43,7 @@ import signal
 # --- SHUTDOWN HANDLER ---
 def signal_handler(sig, frame):
     print(f"\n[SERVER] Caught signal {sig}. Exiting gracefully...")
-    # Stop the managed local inference child process before the backend exits.
-    if model_runtime.process and model_runtime.process.poll() is None:
-        try:
-            model_runtime.process.terminate()
-        except Exception:
-            pass
+    # Voice sessions are closed by the ASGI shutdown lifecycle.
     # Force kill
     print("[SERVER] Force exiting...")
     os._exit(0)
@@ -94,7 +91,7 @@ DEFAULT_SETTINGS = {
             {"id": "gemma-4-12b", "name": "Gemma 4 12B Vision", "model_path": "models/vision/gemma-4-12b/model.gguf", "mmproj_path": "models/vision/gemma-4-12b/mmproj.gguf", "chat_handler": "gemma4", "chat_template_kwargs": {"enable_thinking": true}, "capabilities": ["vision"], "context_size": 8192, "gpu_layers": 99, "max_tokens": 2048, "temperature": 1.0, "top_p": 0.95, "top_k": 64}
         ]
     },
-    "voice": {"provider": "gemini_api", "enabled": False, "api_key_env": "GEMINI_API_KEY"}
+    "voice": {"provider": "gemini_api", "enabled": True, "api_key_env": "GEMINI_API_KEY", "model": "gemini-3.8-live"}
 }
 
 SETTINGS = copy.deepcopy(DEFAULT_SETTINGS)
@@ -164,6 +161,7 @@ if not os.path.exists(SETTINGS_FILE):
 
 authenticator = None
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(PROJECT_ROOT / ".env")
 project_manager = ProjectManager(str(PROJECT_ROOT))
 model_runtime = LocalModelRuntime(SETTINGS)
 assistant_engine = None
@@ -172,6 +170,7 @@ unreal_mcp_client = None
 latest_uploaded_image = None
 latest_camera_image = None
 latest_image_name = None
+voice_service = GeminiVoiceService(lambda event, data, room: sio.emit(event, data, room=room))
 pending_tool_confirmations = {}
 
 def get_latest_image(source='latest'):
@@ -290,6 +289,7 @@ async def connect(sid, environ):
 
 @sio.event
 async def disconnect(sid):
+    await voice_service.stop(sid)
     print(f"Client disconnected: {sid}")
 
 @sio.event
@@ -300,28 +300,40 @@ async def start_audio(sid, data=None):
 
     voice_config = SETTINGS.get("voice", {})
     if voice_config.get("provider") != "gemini_api":
-        await sio.emit("error", {"msg": "Only the Gemini API voice provider is supported in this A.D.A configuration."}, room=sid)
+        await sio.emit("error", {"msg": "Only the Gemini API voice provider is supported."}, room=sid)
         return
-    if not voice_config.get("enabled", False):
-        await sio.emit("error", {"msg": "Gemini API voice is disabled. Configure GEMINI_API_KEY and enable voice when the API adapter is connected."}, room=sid)
+    if not voice_config.get("enabled", True):
+        await sio.emit("error", {"msg": "Gemini API voice is disabled in A.D.A Settings."}, room=sid)
         return
 
-    await sio.emit("error", {"msg": "Gemini API voice transport is not connected yet. Local voice fallback is disabled."}, room=sid)
+    try:
+        await voice_service.start(sid)
+    except Exception as exc:
+        print(f"[VOICE] Gemini session could not start: {type(exc).__name__}: {exc}")
+        await sio.emit("voice_error", {"message": str(exc)}, room=sid)
+
+
+@sio.event
+async def voice_audio_chunk(sid, data):
+    if isinstance(data, dict):
+        data = data.get("audio", b"")
+    if isinstance(data, (bytes, bytearray, memoryview)):
+        await voice_service.send_audio(sid, bytes(data))
 
 
 @sio.event
 async def stop_audio(sid):
-    await sio.emit("status", {"msg": "No active voice session."}, room=sid)
+    await voice_service.stop(sid)
 
 
 @sio.event
 async def pause_audio(sid):
-    await sio.emit("status", {"msg": "No active Gemini API voice session."}, room=sid)
+    await sio.emit("voice_paused", {}, room=sid)
 
 
 @sio.event
 async def resume_audio(sid):
-    await sio.emit("status", {"msg": "No active Gemini API voice session."}, room=sid)
+    await sio.emit("voice_resumed", {}, room=sid)
 
 
 @sio.event
