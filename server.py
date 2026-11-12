@@ -29,7 +29,7 @@ class GalaxyHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _backend(self, endpoint: str, payload: dict) -> dict:
+    def _backend(self, endpoint: str, payload: dict, timeout: int = 60) -> dict:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         request = Request(
             BACKEND + endpoint,
@@ -37,7 +37,7 @@ class GalaxyHandler(BaseHTTPRequestHandler):
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urlopen(request, timeout=60) as response:
+        with urlopen(request, timeout=timeout) as response:
             return json.loads(response.read().decode("utf-8"))
 
     def _backend_raw(self, endpoint: str, payload: dict):
@@ -121,7 +121,7 @@ class GalaxyHandler(BaseHTTPRequestHandler):
                 self.wfile.write(audio)
                 return
             if self.path == "/hear":
-                self._json(200, self._backend("/hear", payload))
+                self._json(200, self._backend("/hear", payload, timeout=180))
                 return
             if self.path == "/network-audit":
                 self._json(200, self._backend("/network-audit/browser", payload))
