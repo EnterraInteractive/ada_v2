@@ -271,7 +271,7 @@ class KnowledgeBase:
         self.ensure_indexed()
         with self._connect() as db:
             rows = db.execute(
-                "SELECT id, path, title, group_name, excerpt, content FROM documents ORDER BY id LIMIT ?",
+                "SELECT id, path, title, group_name, excerpt, substr(content, 1, 20000) AS content FROM documents ORDER BY id LIMIT ?",
                 (max(1, min(int(limit), 2000)),),
             ).fetchall()
 
