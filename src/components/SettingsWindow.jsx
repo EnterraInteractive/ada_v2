@@ -347,6 +347,11 @@ const SettingsWindow = ({
                                     className="w-full bg-gray-900 border border-gray-700 rounded p-1 text-[10px] text-cyan-100">
                                     <option value="gemma4">Gemma 4</option>
                                     <option value="mtmd">Generic MTMD</option>
+                                    <option value="qwen25vl">Qwen 2.5 VL</option>
+                                    <option value="minicpmv26">MiniCPM-V 2.6</option>
+                                    <option value="llava15">LLaVA 1.5</option>
+                                    <option value="llava16">LLaVA 1.6</option>
+                                    <option value="moondream">Moondream</option>
                                 </select>
                             </label>
                             <div className="grid grid-cols-3 gap-2">
