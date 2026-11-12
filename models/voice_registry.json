@@ -9,7 +9,8 @@
       "local_model_required": false,
       "api_key_env": "GEMINI_API_KEY",
       "config_path": "models/voice/gemini/provider.json",
-      "enabled": false
+      "enabled": true,
+      "model": "gemini-3.8-live"
     }
   ]
 }
