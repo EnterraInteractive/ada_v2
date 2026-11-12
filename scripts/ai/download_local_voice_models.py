@@ -71,6 +71,7 @@ def main() -> int:
 
     expected = [
         WHISPER_DEST / "model.bin",
+        WHISPER_COMMAND_DEST / "model.bin",
         PIPER_DEST / "en_US-lessac-medium.onnx",
         PIPER_DEST / "en_US-lessac-medium.onnx.json",
     ]
