@@ -85,7 +85,8 @@ DEFAULT_SETTINGS = {
         "search_project": False,
         "run_terminal_command": True,
         "analyze_image": False,
-        "unreal_mcp": True
+        "unreal_mcp": True,
+        "unreal_mcp_readonly": False
     },
     "camera_flipped": False,
     "workspace_path": "E:\\Unreal Projects\\EnterraOnline",
