@@ -334,6 +334,10 @@ def _galaxy_read_full(source_id):
 
 def _galaxy_graph_data():
     graph = galaxy_knowledge_base.graph()
+    graph["nodes"] = [node for node in graph["nodes"] if Path(node.get("path", "")).suffix.casefold() == ".md"]
+    for index, node in enumerate(graph["nodes"]):
+        node["id"] = index
+    graph["count"] = len(graph["nodes"])
     title_lookup = {}
     note_bodies = {}
     wiki_by_index = {}
@@ -494,8 +498,9 @@ async def knowledge_galaxy_remember(payload: dict):
     if not body:
         return {"error": "Tell me what you would like remembered."}
     try:
-        related = await asyncio.to_thread(galaxy_knowledge_base.search, body, 1)
-        anchor_path = related[0]["path"] if related else None
+        related = await asyncio.to_thread(galaxy_knowledge_base.search, body, 20)
+        related_markdown = next((item for item in related if Path(item["path"]).suffix.casefold() == ".md"), None)
+        anchor_path = related_markdown["path"] if related_markdown else None
         saved = await asyncio.to_thread(galaxy_knowledge_base.remember, body)
         graph = await asyncio.to_thread(_galaxy_graph_data)
         node = next((item for item in graph["nodes"] if item["source_id"] == saved["id"]), None)
