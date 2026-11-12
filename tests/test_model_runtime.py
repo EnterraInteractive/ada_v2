@@ -1,6 +1,7 @@
 """Tests for the embedded llama-cpp-python runtime and model handoff."""
 import asyncio
 import base64
+import json
 
 import pytest
 
@@ -98,3 +99,38 @@ def test_primary_model_receives_tool_schemas_and_k2_generation_settings(tmp_path
     assert request["tools"] == tools
     assert request["tool_choice"] == "auto"
     assert request["max_tokens"] == 32768
+
+
+def test_relative_model_paths_resolve_from_the_ada_project_root(tmp_path):
+    model_file = tmp_path / "models" / "language" / "k2-horizon-7b" / "model.gguf"
+    model_file.parent.mkdir(parents=True)
+    model_file.write_bytes(b"test")
+
+    runtime = LocalModelRuntime({"model_runtime": {"models": []}})
+    runtime.project_root = tmp_path
+
+    assert runtime._resolve_path("models/language/k2-horizon-7b/model.gguf") == model_file.resolve()
+    assert runtime._file_exists("models/language/k2-horizon-7b/model.gguf")
+
+
+def test_project_registry_is_extendable_and_settings_override_registry_defaults(tmp_path):
+    registry_dir = tmp_path / "models"
+    registry_dir.mkdir()
+    registry_file = registry_dir / "registry.json"
+    registry_file.write_text(json.dumps({
+        "version": 1,
+        "models": [{
+            "id": "future-model",
+            "model_path": "models/future/model.gguf",
+            "context_size": 8192,
+        }],
+    }), encoding="utf-8")
+
+    runtime = LocalModelRuntime({"model_runtime": {
+        "models": [{"id": "future-model", "context_size": 4096}],
+    }})
+    runtime.project_root = tmp_path
+
+    model = runtime.registry()["future-model"]
+    assert model["model_path"] == "models/future/model.gguf"
+    assert model["context_size"] == 4096
