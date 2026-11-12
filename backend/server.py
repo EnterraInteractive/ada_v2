@@ -342,6 +342,7 @@ async def intercept_voice_command(prompt: str):
         try:
             await asyncio.to_thread(voice_studio_service.ensure_ready)
         except Exception as exc:
+            VOICE_MODE = "piper"
             SETTINGS.setdefault("voice_studio", {})["enabled"] = False
             local_voice_service.tts_callback = None
             return f"VoiceStudio is not ready, sir; I shall keep using local Piper. {exc}"
@@ -562,17 +563,17 @@ async def _galaxy_chat(question, session_id):
         ]
         for pattern, reply in small_talk:
             if re.search(pattern, question, re.IGNORECASE):
-                return {"answer": reply, "nodes": [], "note_count": len(nodes), "used_notes": []}
+                return {"answer": reply, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status(), "voice_mode": VOICE_MODE}
 
     remember_command = await intercept_remember_command(question)
     if remember_command:
         return {"answer": remember_command, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status(), "voice_mode": VOICE_MODE}
     voice_command = await intercept_voice_command(question)
     if voice_command:
-        return {"answer": voice_command, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status()}
+        return {"answer": voice_command, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status(), "voice_mode": VOICE_MODE}
     brain_command = await intercept_brain_command(question)
     if brain_command:
-        return {"answer": brain_command, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status()}
+        return {"answer": brain_command, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status(), "voice_mode": VOICE_MODE}
 
     history = GALAXY_SESSIONS.setdefault(session_id, [])
     retrieval_question = question
@@ -645,6 +646,7 @@ async def _galaxy_chat(question, session_id):
             for node in used
         ],
         "brain": brain_status(),
+        "voice_mode": VOICE_MODE,
     }
 
 
