@@ -80,6 +80,11 @@ TOOLS = [
         "query": {"type": "string"},
         "limit": {"type": "integer", "minimum": 1, "maximum": 12, "default": 6},
     }, ["query"]),
+    function_tool("read_knowledge_source", "Read the full text of an indexed source by its source ID, including PDF references. Use bounded chunks and continue with next_offset when needed.", {
+        "source_id": {"type": "string"},
+        "offset": {"type": "integer", "minimum": 0, "default": 0},
+        "limit": {"type": "integer", "minimum": 1000, "maximum": 25000, "default": 18000},
+    }, ["source_id"]),
     function_tool("remember", "Save a durable Markdown memory in Ada's local knowledge store and index it immediately.", {
         "text": {"type": "string"},
     }, ["text"]),
@@ -188,6 +193,26 @@ class AssistantEngine:
                 return "The local knowledge store is not configured."
             saved = await asyncio.to_thread(self.knowledge.remember, args["text"])
             return f"Saved memory '{saved['title']}' as [{saved['source']}]. It is indexed and available to the next question."
+
+        if name == "read_knowledge_source":
+            if not self.knowledge:
+                return "The local knowledge index is not configured."
+            raw_id = str(args["source_id"]).strip()
+            if raw_id[:1].casefold() == "k":
+                raw_id = raw_id[1:]
+            try:
+                source_id = int(raw_id)
+            except ValueError:
+                return "Source ID must be a number or an ID such as K12."
+            source = await asyncio.to_thread(
+                self.knowledge.read_source,
+                source_id,
+                args.get("offset", 0),
+                args.get("limit", 18000),
+            )
+            if not source:
+                return f"Knowledge source K{source_id} was not found."
+            return json.dumps(source, ensure_ascii=False, indent=2)
 
         if name == "write_file":
             path = self.project_manager.resolve_path(args["path"])
