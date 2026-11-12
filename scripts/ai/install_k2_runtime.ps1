@@ -58,7 +58,7 @@ $env:FORCE_CMAKE = "1"
 $env:CMAKE_BUILD_PARALLEL_LEVEL = [Math]::Max(4, [Environment]::ProcessorCount - 2).ToString()
 Write-Host "Building embedded llama-cpp-python against llama.cpp b11454 ($LlamaCommit)." -ForegroundColor Yellow
 Write-Host "CUDA: $CudaVersion | GPU target: sm_120"
-& $Python -m pip install --upgrade --no-cache-dir $SourceRoot
+& $Python -m pip install --force-reinstall --no-cache-dir $SourceRoot
 if ($LASTEXITCODE -ne 0) { throw "CUDA build failed. Preserve this terminal output for diagnosis." }
 
 $Verification = & $Python -c "import importlib.metadata as m, llama_cpp; print(m.version('llama-cpp-python')); print('GPU_OFFLOAD=' + str(bool(llama_cpp.llama_supports_gpu_offload()))); print(llama_cpp.llama_print_system_info())"
