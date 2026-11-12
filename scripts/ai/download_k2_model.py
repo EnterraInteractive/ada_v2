@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import shutil
 import sys
 from pathlib import Path
 
@@ -87,15 +86,17 @@ def main() -> int:
 
     print(f"Downloading: {selected}")
     try:
+        download_root = CACHE_ROOT / "downloads" / "k2-horizon"
+        download_root.mkdir(parents=True, exist_ok=True)
         downloaded = Path(hf_hub_download(
             repo_id=args.repo,
             filename=selected,
             repo_type="model",
-            cache_dir=str(HF_CACHE / "hub"),
+            local_dir=str(download_root),
         ))
         DESTINATION.parent.mkdir(parents=True, exist_ok=True)
         temporary = DESTINATION.with_suffix(".gguf.download")
-        shutil.copy2(downloaded, temporary)
+        downloaded.replace(temporary)
         temporary.replace(DESTINATION)
     except Exception as exc:
         print(f"Download failed: {type(exc).__name__}: {exc}", file=sys.stderr)
