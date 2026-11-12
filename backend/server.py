@@ -316,6 +316,15 @@ def _galaxy_config():
     return config
 
 
+def _galaxy_graph_data():
+    graph = galaxy_knowledge_base.graph()
+    for node in graph["nodes"]:
+        stem = Path(node.get("path", "")).stem
+        stem = re.sub(r"^\\d{8}_\\d{6}_\\d+_", "", stem)
+        node["label"] = stem.replace("_", " ").replace("-", " ").strip() or node.get("label", "Untitled")
+    return graph
+
+
 def _galaxy_tokens(value):
     import re
     return {token.casefold() for token in re.findall(r"[\w'-]{2,}", value or "")}
@@ -325,7 +334,7 @@ def _galaxy_chat_sync(question, session_id):
     question = (question or "").strip()
     if not question or len(question) > 4000:
         raise ValueError("Enter a question between 1 and 4,000 characters.")
-    graph = galaxy_knowledge_base.graph()
+    graph = _galaxy_graph_data()
     nodes = graph["nodes"]
     import re
     is_explicit_note_query = bool(re.search(r"\b(notes?|according to|in my (?:notes|files)|from my (?:notes|files))\b", question, re.IGNORECASE))
@@ -444,7 +453,7 @@ async def knowledge_galaxy_remember(payload: dict):
         related = await asyncio.to_thread(galaxy_knowledge_base.search, body, 1)
         anchor_path = related[0]["path"] if related else None
         saved = await asyncio.to_thread(galaxy_knowledge_base.remember, body)
-        graph = await asyncio.to_thread(galaxy_knowledge_base.graph)
+        graph = await asyncio.to_thread(_galaxy_graph_data)
         node = next((item for item in graph["nodes"] if item["source_id"] == saved["id"]), None)
         return {"ok": True, **saved, "node": node, "graph": graph, "anchor_path": anchor_path}
     except Exception as exc:
@@ -453,7 +462,7 @@ async def knowledge_galaxy_remember(payload: dict):
 
 @app.get("/galaxy/graph")
 async def galaxy_graph():
-    return await asyncio.to_thread(galaxy_knowledge_base.graph)
+    return await asyncio.to_thread(_galaxy_graph_data)
 
 
 @app.post("/galaxy/reindex")
