@@ -37,8 +37,13 @@ class VoiceSession:
 
 
 class GeminiVoiceService:
-    def __init__(self, emit: Emit):
+    def __init__(
+        self,
+        emit: Emit,
+        local_query: Callable[[str, str], Awaitable[str]] | None = None,
+    ):
         self.emit = emit
+        self.local_query = local_query
         self.sessions: dict[str, VoiceSession] = {}
 
     @staticmethod
@@ -68,6 +73,26 @@ class GeminiVoiceService:
                 ),
                 input_audio_transcription=types.AudioTranscriptionConfig(),
                 output_audio_transcription=types.AudioTranscriptionConfig(),
+                tools=[{
+                    "function_declarations": [{
+                        "name": "ask_ada_local",
+                        "description": (
+                            "Send the user's spoken request to A.D.A's local K2-Horizon assistant. "
+                            "Use this for every substantive question, instruction, coding request, "
+                            "or Unreal Engine task. Do not answer those requests yourself."
+                        ),
+                        "parameters": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "request": {
+                                    "type": "STRING",
+                                    "description": "The user's complete request in plain text.",
+                                }
+                            },
+                            "required": ["request"],
+                        },
+                    }]
+                }],
             )
             session = await stack.enter_async_context(
                 client.aio.live.connect(model=(model_name or self.model_name()), config=config)
@@ -117,6 +142,38 @@ class GeminiVoiceService:
     async def _receive(self, voice_session: VoiceSession) -> None:
         try:
             async for response in voice_session.session.receive():
+                tool_call = _value(response, "tool_call")
+                if tool_call is not None:
+                    function_responses = []
+                    for function_call in (_value(tool_call, "function_calls", []) or []):
+                        function_name = _value(function_call, "name", "")
+                        call_id = _value(function_call, "id", "")
+                        arguments = _value(function_call, "args", {}) or {}
+                        if function_name != "ask_ada_local" or self.local_query is None:
+                            result = {"error": f"Unsupported voice function: {function_name}"}
+                        else:
+                            prompt = str(arguments.get("request", "")).strip()
+                            if not prompt:
+                                result = {"error": "The spoken request was empty."}
+                            else:
+                                await self.emit("assistant_status", {"state": "thinking"}, voice_session.sid)
+                                try:
+                                    answer = await self.local_query(voice_session.sid, prompt)
+                                    result = {"result": answer}
+                                except Exception as exc:
+                                    result = {"error": str(exc)}
+                                finally:
+                                    await self.emit("assistant_status", {"state": "idle"}, voice_session.sid)
+                        function_responses.append(types.FunctionResponse(
+                            id=call_id,
+                            name=function_name,
+                            response=result,
+                        ))
+                    if function_responses:
+                        await voice_session.session.send_tool_response(
+                            function_responses=function_responses
+                        )
+
                 server_content = _value(response, "server_content")
                 if server_content is None:
                     continue
