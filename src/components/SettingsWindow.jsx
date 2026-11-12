@@ -46,7 +46,7 @@ const SettingsWindow = ({
     const [workspacePath, setWorkspacePath] = useState('');
     const [modelRuntime, setModelRuntime] = useState({ primary_model_id: '', vision_model_id: '', models: [] });
     const [modelRuntimeStatus, setModelRuntimeStatus] = useState({ runtime_available: false, runtime_error: '' });
-    const [voiceSettings, setVoiceSettings] = useState({ provider: 'gemini_api', enabled: true, api_key_env: 'GEMINI_API_KEY', model: 'gemini-3.8-live' });
+    const [voiceSettings, setVoiceSettings] = useState({ provider: 'local', enabled: true, whisper_model_path: 'models/voice/whisper-small', piper_model_path: 'models/voice/piper/en_US-lessac-medium.onnx', whisper_device: 'cuda', whisper_compute_type: 'float16' });
     const [unrealMcp, setUnrealMcp] = useState({ enabled: true, url: 'http://127.0.0.1:8000/mcp' });
     const [unrealMcpStatus, setUnrealMcpStatus] = useState({ connected: false, tool_count: 0 });
 
@@ -206,7 +206,7 @@ const SettingsWindow = ({
 
             <div className="mb-4 rounded border border-gray-800 bg-gray-950/50 p-3">
                 <h3 className="text-cyan-400 font-bold mb-1 text-xs uppercase tracking-wider opacity-80">Speech Output</h3>
-                <p className="text-[10px] text-gray-500">Gemini API voice is the selected provider. Voice runs remotely; no local speech model is loaded. The API adapter must be configured before voice can be enabled.</p>
+                <p className="text-[10px] text-gray-500">A.D.A uses its configured speech provider. The local provider keeps speech recognition and synthesis on this computer.</p>
             </div>
 
             {/* Webcam Section */}
@@ -392,17 +392,30 @@ const SettingsWindow = ({
                     ))}
                 </div>
                 <div className="mt-4 rounded border border-cyan-900/60 bg-gray-950/70 p-3">
-                    <div className="flex items-center justify-between">
-                        <h4 className="text-[10px] text-cyan-400 uppercase tracking-wider">Gemini Live API Voice</h4>
-                        <button onClick={() => setVoiceSettings(prev => ({ ...prev, provider: 'gemini_api', enabled: !prev.enabled }))}
-                            className={`relative w-8 h-4 rounded-full transition-colors ${voiceSettings.enabled ? 'bg-cyan-500/80' : 'bg-gray-700'}`}>
-                            <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${voiceSettings.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
-                        </button>
-                    </div>
-                    <p className="text-[10px] text-gray-400 mt-2">Model: {voiceSettings.model || 'gemini-3.8-live'}</p>
-                    <p className="text-[10px] text-gray-400">Credential: GEMINI_API_KEY in the A.D.A project .env file</p>
-                    <p className="text-[9px] text-gray-500 mt-2">Microphone audio is streamed to Gemini; generated audio plays through your selected output device. No local speech model is loaded.</p>
-                    <p className="text-[9px] text-amber-400 mt-2">Save Local Setup to apply changes. A valid Gemini API key is required.</p>
+                    <h4 className="text-[10px] text-cyan-400 uppercase tracking-wider mb-2">Voice Provider</h4>
+                    <select value={voiceSettings.provider || 'local'}
+                        onChange={e => setVoiceSettings(prev => ({ ...prev, provider: e.target.value }))}
+                        className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-[10px] text-cyan-100">
+                        <option value="local">Local Whisper + Piper (offline)</option>
+                        <option value="gemini_api">Gemini Live API (online, optional)</option>
+                    </select>
+                    <label className="flex items-center gap-2 text-[10px] text-gray-300 mt-3">
+                        <input type="checkbox" checked={!!voiceSettings.enabled}
+                            onChange={e => setVoiceSettings(prev => ({ ...prev, enabled: e.target.checked }))} />
+                        Enable voice
+                    </label>
+                    {voiceSettings.provider === 'local' ? (
+                        <>
+                            <p className="text-[9px] text-gray-400 mt-2">Speech recognition: {voiceSettings.whisper_model_path || 'models/voice/whisper-small'}</p>
+                            <p className="text-[9px] text-gray-400">Speech synthesis: {voiceSettings.piper_model_path || 'models/voice/piper/en_US-lessac-medium.onnx'}</p>
+                            <p className="text-[9px] text-gray-500 mt-2">Both model files must be present under the A.D.A project. Local voice does not require an API key.</p>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-[9px] text-gray-400 mt-2">Credential: GEMINI_API_KEY in the A.D.A project .env file</p>
+                            <p className="text-[9px] text-amber-400 mt-1">Microphone audio is sent to Google's hosted service.</p>
+                        </>
+                    )}
                 </div>
 
                 <div className="flex gap-2 mt-3">
