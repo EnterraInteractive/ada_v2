@@ -61,6 +61,11 @@ if (-not (Test-Path $Python)) {
 if (-not (Test-Path $Python)) { throw "Project-local Python was not created: $Python" }
 $Version = & $Python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
 if ($Version -ne "3.11") { throw "The project-local environment must use Python 3.11; found $Version." }
+$BasePrefix = & $Python -c "import sys; print(sys.base_prefix)"
+$ResolvedPythonRoot = (Resolve-Path $PythonInstallRoot).Path
+if (-not $BasePrefix.StartsWith($ResolvedPythonRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "The existing .venv uses Python outside .ada/python. Rename the existing .venv folder and rerun setup_local.ps1 so uv can recreate it with a project-local interpreter."
+}
 
 Write-Host "Installing Python dependencies into .venv..." -ForegroundColor Yellow
 & $Python -m pip install --upgrade pip
