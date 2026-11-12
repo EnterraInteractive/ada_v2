@@ -2,7 +2,11 @@
 param(
     [switch]$SkipNode,
     [switch]$SkipPlaywright,
-    [switch]$SkipVoiceStudio
+    [switch]$SkipVoiceModels,
+    [switch]$SkipVoiceStudio,
+    [switch]$SkipK2Runtime,
+    [switch]$SkipModelDownloads,
+    [switch]$SkipVerification
 )
 
 $ErrorActionPreference = "Stop"
@@ -74,9 +78,11 @@ if ($LASTEXITCODE -ne 0) { throw "Could not upgrade pip in .venv." }
 & $Python -m pip install -r (Join-Path $ProjectRoot "requirements.txt")
 if ($LASTEXITCODE -ne 0) { throw "Python dependency installation failed." }
 
-Write-Host "Downloading project-local Whisper wake/command models and Piper voice..." -ForegroundColor Yellow
-& $Python (Join-Path $ProjectRoot "scripts/ai/download_local_voice_models.py")
-if ($LASTEXITCODE -ne 0) { throw "Local speech model installation failed." }
+if (-not $SkipVoiceModels) {
+    Write-Host "Downloading project-local Whisper wake/command models and Piper voice..." -ForegroundColor Yellow
+    & $Python (Join-Path $ProjectRoot "scripts/ai/download_local_voice_models.py")
+    if ($LASTEXITCODE -ne 0) { throw "Local speech model installation failed." }
+}
 
 if (-not $SkipPlaywright) {
     Write-Host "Installing Chromium into .ada/browsers..." -ForegroundColor Yellow
@@ -138,10 +144,33 @@ if (-not $SkipVoiceStudio) {
     & (Join-Path $PSScriptRoot "ai/install_voicestudio.ps1")
 }
 
+if (-not $SkipK2Runtime) {
+    $BuildRecord = Join-Path $LocalDataRoot "llama-cpp-build.json"
+    if (-not (Test-Path $BuildRecord)) {
+        Write-Host "Building the project-local CUDA llama.cpp runtime for K2/Gemma..." -ForegroundColor Yellow
+        & (Join-Path $PSScriptRoot "ai/install_k2_runtime.ps1")
+    } else {
+        Write-Host "Keeping the existing project-local llama.cpp CUDA build."
+    }
+}
+
+if (-not $SkipModelDownloads) {
+    Write-Host "Installing K2-Horizon and Gemma 4 model files under models/..." -ForegroundColor Yellow
+    & $Python (Join-Path $ProjectRoot "scripts/ai/download_k2_model.py")
+    if ($LASTEXITCODE -ne 0) { throw "K2-Horizon model download failed." }
+    & $Python (Join-Path $ProjectRoot "scripts/ai/download_gemma4_model.py")
+    if ($LASTEXITCODE -ne 0) { throw "Gemma 4 model/projector download failed." }
+}
+
+if (-not $SkipVerification) {
+    Write-Host "Verifying the embedded K2 runtime, GPU offload, and tool-call path..." -ForegroundColor Yellow
+    & $Python (Join-Path $ProjectRoot "scripts/ai/verify_k2_runtime.py") --full --tool-test
+    if ($LASTEXITCODE -ne 0) { throw "K2 runtime verification failed." }
+}
+
 Write-Host ""
-Write-Host "PASS: Python runtime, Python packages, Node.js, npm packages, caches, MediaPipe WASM, and browser runtime are project-local." -ForegroundColor Green
-Write-Host "Next: powershell -ExecutionPolicy Bypass -File scripts/ai/install_k2_runtime.ps1"
-Write-Host "Then: .venv/Scripts/python.exe scripts/ai/download_k2_model.py"
-Write-Host "Then: .venv/Scripts/python.exe scripts/ai/verify_k2_runtime.py --full --tool-test"
-Write-Host "Then: powershell -ExecutionPolicy Bypass -File scripts/run_voicestudio.ps1 (install the local runtime, select VoxCPM2, and create the Jarvis voice profile)"
+Write-Host "PASS: project-local Python, models, Whisper, Piper, VoiceStudio app/data, Node, vendor assets, browser runtime, and caches are installed under ada_v2." -ForegroundColor Green
+Write-Host "Start VoiceStudio once: powershell -ExecutionPolicy Bypass -File scripts/run_voicestudio.ps1"
+Write-Host "In VoiceStudio: install its local runtime, select VoxCPM2, and create the Jarvis profile from a voice recording you have permission to use."
+Write-Host "Then start Ada and the Knowledge Galaxy. Offline runtime verification: .venv/Scripts/python.exe scripts/ai/drill_offline.py"
 Write-Host "Note: NVIDIA driver, CUDA Toolkit 13.x, Git, CMake, and uv remain machine-level prerequisites."
