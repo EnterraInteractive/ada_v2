@@ -209,7 +209,7 @@ A.D.A loads llama.cpp directly into its own Python backend through `llama-cpp-py
 5. Verify the native K2 loader with `.venv\Scripts\python.exe scripts\ai\verify_k2_runtime.py`.
 6. Obtain the Gemma 4 12B Instruct GGUF and its matching multimodal projector, then place them at `models/vision/gemma-4-12b/model.gguf` and `models/vision/gemma-4-12b/mmproj.gguf`.
 7. Start A.D.A and open **Settings → Local Model Runtime**. The project-relative paths are preconfigured; use the file pickers only if you keep different filenames or locations.
-8. Confirm K2 is the primary model and Gemma 4 is the vision delegate, then save.
+8. K2-Horizon is the default primary model and Gemma 4 is the default vision delegate. Gemma 4 is also marked chat-capable and can be selected as the primary chat model in Settings when desired, then save.
 9. Confirm the Enterra Online workspace under **Development Workspace**; its default is `E:/Unreal Projects/EnterraOnline`.
 
 **Runtime behavior**
