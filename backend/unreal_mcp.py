@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import re
 from urllib.parse import urlparse
 from contextlib import AsyncExitStack
@@ -136,6 +137,13 @@ class UnrealMCPClient:
                     },
                 })
             return result
+
+    def is_read_only(self, public_name: str) -> bool:
+        tool = self._tools.get(public_name)
+        annotations = getattr(tool, "annotations", None) if tool else None
+        if isinstance(annotations, dict):
+            return bool(annotations.get("readOnlyHint", annotations.get("read_only_hint", False)))
+        return bool(getattr(annotations, "readOnlyHint", False))
 
     async def call_tool(self, public_name: str, arguments: dict[str, Any]) -> str:
         async with self._lock:
