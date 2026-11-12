@@ -18,7 +18,8 @@
         "browser_screenshot": false,
         "browser_wait": false,
         "browser_close": true,
-        "unreal_mcp": true
+        "unreal_mcp": true,
+        "unreal_mcp_readonly": false
     },
     "camera_flipped": false,
     "workspace_path": "E:/Unreal Projects/EnterraOnline",
