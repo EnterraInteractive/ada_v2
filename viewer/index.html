@@ -48,7 +48,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  const error = text => { $('error').textContent=text; $('error').style.display='block'; };
  const clearError = () => $('error').style.display='none';
  const color = group => {let h=0;for(const c of String(group||'notes'))h=(h*31+c.charCodeAt(0))|0;return 'hsl('+Math.abs(h)%360+',85%,68%)';};
- let currentSource=null;
+ let currentSource=null,playbackContext=null;
  async function playPcm(encoded,sampleRate=24000){
    if(muted||!encoded)return;
    const raw=atob(encoded),view=new DataView(new ArrayBuffer(raw.length));
@@ -135,9 +135,9 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
    }
    const bytes=new Uint8Array(pcm.buffer);let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(binary);
  }
- async function transcribeFrames(frames,mode='command'){
+ async function transcribeFrames(frames,mode='command',sourceRate=null){
    if(!frames.length)return '';
-   const audioPcm=resamplePcm(frames,micContext?.sampleRate||48000);
+   const audioPcm=resamplePcm(frames,sourceRate||micContext?.sampleRate||48000);
    const response=await fetch('/hear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({audio_pcm16:audioPcm,mode})});
    const result=await response.json();if(result.error)throw new Error(result.error);return (result.transcript||'').trim();
  }
@@ -201,8 +201,8 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
    interaction();if(currentSource){try{currentSource.stop();}catch{}currentSource=null;}
    if(recording){
      recording=false;$('mic').textContent='🎙';status('● TRANSCRIBING LOCALLY…');
-     const frames=micFrames;micFrames=[];
-     try{const transcript=await transcribeFrames(frames);if(transcript){$('question').value=transcript;await ask(transcript);}else status('NO SPEECH DETECTED · TRY AGAIN');}
+     const frames=micFrames;micFrames=[];const sourceRate=micContext?.sampleRate||48000;await stopMicrophone();
+     try{const transcript=await transcribeFrames(frames,'command',sourceRate);if(transcript){$('question').value=transcript;await ask(transcript);}else status('NO SPEECH DETECTED · TRY AGAIN');}
      catch(e){error('Local Whisper: '+(e.message||'transcription failed'));status('VOICE ERROR');}
      return;
    }
