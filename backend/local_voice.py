@@ -48,11 +48,13 @@ class LocalVoiceService:
         local_query: LocalQuery,
         project_root: str | Path,
         config: dict[str, Any] | None = None,
+        tts_callback: Callable[[str], bytes] | None = None,
     ):
         self.emit = emit
         self.local_query = local_query
         self.project_root = Path(project_root).resolve()
         self.config = config or {}
+        self.tts_callback = tts_callback
         self.sessions: dict[str, LocalVoiceSession] = {}
         self._whisper: Any | None = None
         self._whisper_wake: Any | None = None
@@ -236,6 +238,11 @@ class LocalVoiceService:
         return " ".join(segment.text.strip() for segment in segments if segment.text.strip()).strip()
 
     def _synthesize(self, text: str) -> bytes:
+        if self.tts_callback is not None:
+            try:
+                return self.tts_callback(text)
+            except Exception as exc:
+                print(f"[VOICE] VoiceStudio synthesis failed; using Piper: {type(exc).__name__}: {exc}")
         output = io.BytesIO()
         self._piper.synthesize_wav(text, output)
         output.seek(0)
