@@ -183,7 +183,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
    try{
      if(currentSource||browserSpeaking){
        const interruptText=await transcribeFrames(frames,'wake');
-       if(/\\b(stop|wait)\\b/i.test(interruptText)){if(currentSource){try{currentSource.stop();}catch{}currentSource=null;}if(window.speechSynthesis)window.speechSynthesis.cancel();browserSpeaking=false;status('SPEECH INTERRUPTED');}
+       if(/\b(stop|wait)\b/i.test(interruptText)){if(currentSource){try{currentSource.stop();}catch{}currentSource=null;}if(window.speechSynthesis)window.speechSynthesis.cancel();browserSpeaking=false;status('SPEECH INTERRUPTED');}
        return;
      }
      if(awaitingWakeCommand){
@@ -192,12 +192,12 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
      }
      const wakeText=await transcribeFrames(frames,'wake');
      if(wakeText)status('HEARD · '+wakeText.slice(0,100));
-     const wakeMatch=wakeText.match(/^(?:hey\\s+)?jarvis[,.! ]*(.*)$/i);
+     const wakeMatch=wakeText.match(/^(?:hey\s+)?jarvis[,.! ]*(.*)$/i);
      if(!wakeMatch)return; // The small model discards speech without the wake word.
      const wakeCommand=(wakeMatch[1]||'').trim();
      if(!wakeCommand){awaitingWakeCommand=true;await speak('Yes, sir?');status('LISTENING FOR YOUR COMMAND');return;}
      const commandText=await transcribeFrames(frames,'command');
-     const command=commandText.replace(/^(?:hey\\s+)?jarvis[,.! ]*/i,'').trim()||wakeCommand;
+     const command=commandText.replace(/^(?:hey\s+)?jarvis[,.! ]*/i,'').trim()||wakeCommand;
      await ask(command);
    }catch(e){error('Local hearing: '+(e.message||'transcription failed'));status('HEARING ERROR');}
  }
