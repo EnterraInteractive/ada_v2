@@ -763,7 +763,16 @@ async def knowledge_galaxy_remember(payload: dict):
         saved = await asyncio.to_thread(galaxy_knowledge_base.remember, body)
         graph = await asyncio.to_thread(_galaxy_graph_data)
         node = next((item for item in graph["nodes"] if item["source_id"] == saved["id"]), None)
-        return {"ok": True, **saved, "node": node, "graph": graph, "anchor_path": anchor_path}
+        anchor = next((item for item in graph["nodes"] if anchor_path and item["path"] == anchor_path), None)
+        return {
+            "ok": True,
+            **saved,
+            "node": node,
+            "graph": graph,
+            "anchor_path": anchor_path,
+            "node_index": node.get("id") if node else None,
+            "anchor_node_index": anchor.get("id") if anchor else None,
+        }
     except Exception as exc:
         return {"error": f"{type(exc).__name__}: {exc}"}
 
