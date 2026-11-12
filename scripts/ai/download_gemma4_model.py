@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -93,14 +92,18 @@ def main() -> int:
             print(f"Already present, keeping: {target}")
             continue
         print(f"Downloading {remote_name}...")
-        cached = hf_hub_download(
+        download_root = CACHE_ROOT / "downloads" / "gemma4"
+        download_root.mkdir(parents=True, exist_ok=True)
+        downloaded = Path(hf_hub_download(
             repo_id=args.repo,
             filename=remote_name,
             repo_type="model",
-            cache_dir=str(HF_CACHE / "hub"),
+            local_dir=str(download_root),
             token=token,
-        )
-        shutil.copy2(cached, target)
+        ))
+        temporary = target.with_suffix(target.suffix + ".download")
+        downloaded.replace(temporary)
+        temporary.replace(target)
         print(f"Saved {target} ({target.stat().st_size:,} bytes)")
 
     print("Gemma 4 model and projector are in the Ada project.")
