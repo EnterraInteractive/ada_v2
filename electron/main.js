@@ -70,13 +70,15 @@ function startPythonBackend() {
     const localPython = process.platform === 'win32'
         ? path.join(projectRoot, '.venv', 'Scripts', 'python.exe')
         : path.join(projectRoot, '.venv', 'bin', 'python');
-    const pythonExecutable = process.env.ADA_PYTHON || (
-        require('fs').existsSync(localPython) ? localPython : 'python'
-    );
-
-    if (pythonExecutable === 'python') {
-        console.warn('[A.D.A] Project-local .venv was not found. Run scripts\\setup_local.ps1; using PATH python as a temporary fallback.');
+    if (!process.env.ADA_PYTHON && !require('fs').existsSync(localPython)) {
+        dialog.showErrorBox(
+            'A.D.A setup required',
+            'The project-local Python environment was not found. Run scripts/setup_local.ps1 from the Ada project folder, then start A.D.A again.'
+        );
+        app.quit();
+        return false;
     }
+    const pythonExecutable = process.env.ADA_PYTHON || localPython;
     console.log(`Starting Python backend: ${scriptPath}`);
     console.log(`Python interpreter: ${pythonExecutable}`);
 
@@ -116,6 +118,7 @@ function startPythonBackend() {
     pythonProcess.stderr.on('data', (data) => {
         console.error(`[Python Error]: ${data}`);
     });
+    return true;
 }
 
 app.whenReady().then(() => {
@@ -153,7 +156,7 @@ app.whenReady().then(() => {
             console.log('A.D.A backend port is already in use. Checking its health endpoint.');
             waitForBackend().then(createWindow);
         } else {
-            startPythonBackend();
+            if (!startPythonBackend()) return;
             // Give it a moment to start, then wait for health check
             setTimeout(() => {
                 waitForBackend().then(createWindow);
