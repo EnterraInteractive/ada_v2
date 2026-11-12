@@ -38,10 +38,27 @@ def test_parse_k2_native_ifm_json_tool_call_envelope():
     )
     calls, visible = AssistantEngine._parse_native_tool_calls(content)
 
-    assert visible == "<ifm|tool_calls>\n\n</ifm|tool_calls>"
+    assert visible == ""
     assert len(calls) == 1
     assert calls[0]["function"]["name"] == "read_file"
     assert json.loads(calls[0]["function"]["arguments"]) == {"path": "Source/Player.cpp"}
+
+
+def test_parse_k2_native_ifm_xml_tool_call_envelope():
+    content = (
+        "<ifm|tool_calls>\\n"
+        "<ifm|tool_call>read_file\\n"
+        "<ifm|arg_key>path</ifm|arg_key>\\n"
+        "<ifm|arg_value>Source/Character.cpp</ifm|arg_value>\\n"
+        "</ifm|tool_call>\\n"
+        "</ifm|tool_calls>"
+    )
+    calls, visible = AssistantEngine._parse_native_tool_calls(content)
+
+    assert visible == ""
+    assert len(calls) == 1
+    assert calls[0]["function"]["name"] == "read_file"
+    assert json.loads(calls[0]["function"]["arguments"]) == {"path": "Source/Character.cpp"}
 
 
 def test_parse_k2_raw_json_tool_call():
