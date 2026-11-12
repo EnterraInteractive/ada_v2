@@ -72,15 +72,25 @@ class VoiceStudioClient:
         })
         self._selected = True
 
+    def ensure_ready(self) -> str:
+        self._select()
+        return str(self.profile_id)
+
     def set_profile(self, profile_name: str) -> None:
         name = (profile_name or "").strip()
         if not name:
             raise ValueError("Voice profile name cannot be empty.")
+        previous = (self.profile_name, self.profile_id, self._selected, self._warmed, self._last_warm)
         self.profile_name = name
         self.profile_id = None
         self._selected = False
         self._warmed = False
         self._last_warm = 0.0
+        try:
+            self._select()
+        except Exception:
+            self.profile_name, self.profile_id, self._selected, self._warmed, self._last_warm = previous
+            raise
 
     def warm(self) -> None:
         """Select the configured engine/profile and warm it with a discarded line."""
