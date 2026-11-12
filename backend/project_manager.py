@@ -102,7 +102,7 @@ class ProjectManager:
         with open(log_file, "a", encoding="utf-8") as handle:
             handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    def get_project_context(self, max_file_size: int = 5000, max_total_chars: int = 16000) -> str:
+    def get_project_context(self, max_file_size: int = 16000, max_total_chars: int = 24000) -> str:
         project_path = self.get_current_project_path()
         if not project_path.exists():
             return f"Workspace '{self.current_project}' does not exist."
