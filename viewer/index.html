@@ -91,7 +91,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
    graph.linkColor(l=>set.has(Number(l.source?.id??l.source))&&set.has(Number(l.target?.id??l.target))?'rgba(255,230,150,.8)':'rgba(90,180,220,.18)');
    graph.refresh();
  }
- async function refreshGraph(anchorIndex=null,newIndex=null){
+ async function addNote(anchorIndex=null,newIndex=null){
    const response=await fetch('/graph?ts='+Date.now());if(!response.ok)throw new Error('Could not refresh graph data.');
    const next=await response.json();
    const oldPositions=new Map(data.nodes.map(n=>[n.id,{x:n.x,y:n.y,z:n.z}]));
@@ -105,7 +105,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
    try{
     if(/^remember that\b/i.test(text)){
       const r=await fetch('/remember',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const result=await r.json();if(result.error)throw new Error(result.error);
-      await refreshGraph(result.anchor_node_index??null,result.node_index??null);
+      await addNote(result.anchor_node_index??null,result.node_index??null);
       const reply='Consider it filed, sir. My memory has grown another neuron; try not to make a habit of being interesting.';
       $('answer').textContent=reply;speak(reply);
     }else{
@@ -218,7 +218,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  $('ask').addEventListener('submit',e=>{e.preventDefault();ask();});
  $('mic').addEventListener('click',startMic);\n $('handsfree').addEventListener('click',toggleHandsFree);
  $('voiceToggle').addEventListener('click',()=>{interaction();voiceOn=!voiceOn;$('voiceToggle').textContent=voiceOn?'VOICE ON':'VOICE OFF';if(!voiceOn&&currentSource){try{currentSource.stop();}catch{}currentSource=null;}});
- $('reindex').addEventListener('click',async()=>{interaction();status('● THINKING…');try{await refreshGraph();}catch(e){error(e.message);}finally{status('READY · NOTES GROUNDED · LOCAL VIEWER');}});
+ $('reindex').addEventListener('click',async()=>{interaction();status('● THINKING…');try{await addNote();}catch(e){error(e.message);}finally{status('READY · NOTES GROUNDED · LOCAL VIEWER');}});
  document.addEventListener('pointerdown',interaction,{once:true});
  async function boot(){
    if(!window.ForceGraph3D){error('The local 3D graph library is missing. Install the project dependencies and stage viewer/vendor assets.');return;}
