@@ -55,6 +55,7 @@ class LocalVoiceService:
         self.config = config or {}
         self.sessions: dict[str, LocalVoiceSession] = {}
         self._whisper: Any | None = None
+        self._whisper_wake: Any | None = None
         self._piper: Any | None = None
         self._load_lock = asyncio.Lock()
 
@@ -75,7 +76,7 @@ class LocalVoiceService:
             if self._whisper is not None and self._piper is not None:
                 return
 
-            whisper_path = self._model_path("whisper_model_path", "models/voice/whisper-small")
+            whisper_path = self._model_path("whisper_model_path", "models/voice/whisper-large-v3-turbo")
             piper_path = self._model_path("piper_model_path", "models/voice/piper/en_US-lessac-medium.onnx")
             piper_config = Path(str(piper_path) + ".json")
             if not whisper_path.exists():
@@ -126,6 +127,30 @@ class LocalVoiceService:
                     raise
 
             self._whisper = await asyncio.to_thread(load)
+
+    async def _load_wake_whisper(self) -> None:
+        """Load the small, project-local Whisper model used only for wake detection."""
+        if self._whisper_wake is not None:
+            return
+        async with self._load_lock:
+            if self._whisper_wake is not None:
+                return
+            wake_path = self._model_path("wake_model_path", "models/voice/whisper-small")
+            if not wake_path.exists():
+                raise RuntimeError(f"Local wake-word model is missing: {wake_path}")
+
+            def load():
+                from faster_whisper import WhisperModel
+                device = str(self.config.get("whisper_device", "cuda"))
+                compute_type = str(self.config.get("whisper_compute_type", "float16" if device == "cuda" else "int8"))
+                try:
+                    return WhisperModel(str(wake_path), device=device, compute_type=compute_type)
+                except Exception:
+                    if device != "cpu":
+                        return WhisperModel(str(wake_path), device="cpu", compute_type="int8")
+                    raise
+
+            self._whisper_wake = await asyncio.to_thread(load)
 
     async def start(self, sid: str, model_name: str | None = None) -> None:
         await self._load_models()
@@ -194,10 +219,14 @@ class LocalVoiceService:
             if not session.closed:
                 await self.emit("assistant_status", {"state": "idle"}, session.sid)
 
-    def _transcribe(self, audio: bytes) -> str:
+    def _transcribe(self, audio: bytes, model_role: str = "command") -> str:
         import numpy as np
+        model = self._whisper_wake if model_role == "wake" else self._whisper
+        model = model or self._whisper
+        if model is None:
+            raise RuntimeError("The requested local Whisper model has not been loaded.")
         samples = np.frombuffer(audio, dtype="<i2").astype(np.float32) / 32768.0
-        segments, _info = self._whisper.transcribe(
+        segments, _info = model.transcribe(
             samples,
             language=self.config.get("language") or None,
             vad_filter=True,
