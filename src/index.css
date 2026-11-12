@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
+  font-family: 'Cascadia Mono', Consolas, monospace;
   margin: 0;
   background-color: #000;
   overflow: hidden;
