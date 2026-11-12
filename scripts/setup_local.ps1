@@ -116,6 +116,13 @@ if (-not $SkipNode) {
     throw "npm is not available. Run setup_local.ps1 without -SkipNode to install portable Node."
 }
 
+$GraphVendor = Join-Path $ProjectRoot "viewer/vendor/3d-force-graph.min.js"
+if (-not (Test-Path $GraphVendor)) {
+    Write-Host "Staging the pinned offline Knowledge Galaxy graph library..." -ForegroundColor Yellow
+    & node (Join-Path $ProjectRoot "scripts/stage_galaxy_vendor.mjs")
+    if ($LASTEXITCODE -ne 0) { throw "The local Knowledge Galaxy graph library could not be staged." }
+}
+
 # Copy MediaPipe's WASM binaries into Vite's public folder so gesture tracking
 # does not fetch code from jsDelivr at runtime.
 $MediapipeSource = Join-Path $ProjectRoot "node_modules/@mediapipe/tasks-vision/wasm"
