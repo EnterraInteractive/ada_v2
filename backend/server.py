@@ -213,12 +213,16 @@ load_dotenv(PROJECT_ROOT / ".env")
 project_manager = ProjectManager(str(PROJECT_ROOT))
 knowledge_base = KnowledgeBase(
     database_path=PROJECT_ROOT / ".ada" / "knowledge.sqlite3",
-    capture_dir=NOTES_DIR / "captures",
+    capture_dir=PROJECT_ROOT / ".ada" / "memory" / "captures",
     source_roots=lambda: [
-        NOTES_DIR,
         PROJECT_ROOT / "docs",
         project_manager.get_current_project_path(),
     ],
+)
+galaxy_knowledge_base = KnowledgeBase(
+    database_path=PROJECT_ROOT / ".ada" / "knowledge-galaxy.sqlite3",
+    capture_dir=NOTES_DIR / "captures",
+    source_roots=lambda: [NOTES_DIR],
 )
 model_runtime = LocalModelRuntime(SETTINGS)
 assistant_engine = None
@@ -321,7 +325,7 @@ def _galaxy_chat_sync(question, session_id):
     question = (question or "").strip()
     if not question or len(question) > 4000:
         raise ValueError("Enter a question between 1 and 4,000 characters.")
-    graph = knowledge_base.graph()
+    graph = galaxy_knowledge_base.graph()
     nodes = graph["nodes"]
     import re
     is_explicit_note_query = bool(re.search(r"\b(notes?|according to|in my (?:notes|files)|from my (?:notes|files))\b", question, re.IGNORECASE))
@@ -349,7 +353,7 @@ def _galaxy_chat_sync(question, session_id):
     for node in nodes:
         title_tokens = _galaxy_tokens(node.get("label", ""))
         excerpt_tokens = _galaxy_tokens(node.get("excerpt", ""))
-        full = knowledge_base.read_source(node["source_id"], 0, 25000) or {}
+        full = galaxy_knowledge_base.read_source(node["source_id"], 0, 25000) or {}
         content_tokens = _galaxy_tokens(full.get("content", ""))
         overlap = len(meaningful & content_tokens)
         title_hits = len(meaningful & title_tokens)
@@ -443,6 +447,16 @@ async def knowledge_galaxy_remember(payload: dict):
         return {"ok": True, **saved, "node": node, "graph": graph, "anchor_source_id": anchor_source_id}
     except Exception as exc:
         return {"error": f"{type(exc).__name__}: {exc}"}
+
+
+@app.get("/galaxy/graph")
+async def galaxy_graph():
+    return await asyncio.to_thread(galaxy_knowledge_base.graph)
+
+
+@app.post("/galaxy/reindex")
+async def galaxy_reindex():
+    return await asyncio.to_thread(galaxy_knowledge_base.reindex)
 
 
 @app.get("/knowledge/graph")
