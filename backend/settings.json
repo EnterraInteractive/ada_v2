@@ -73,10 +73,11 @@
     "voice": {
         "provider": "local",
         "enabled": true,
-        "whisper_model_path": "models/voice/whisper-small",
+        "whisper_model_path": "models/voice/whisper-large-v3-turbo",
         "piper_model_path": "models/voice/piper/en_US-lessac-medium.onnx",
         "whisper_device": "cuda",
-        "whisper_compute_type": "float16"
+        "whisper_compute_type": "float16",
+        "wake_model_path": "models/voice/whisper-small"
     },
     "unreal_mcp": {
         "enabled": true,
