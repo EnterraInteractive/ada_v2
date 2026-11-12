@@ -5,7 +5,6 @@ import argparse
 import os
 from pathlib import Path
 
-from huggingface_hub import hf_hub_download, snapshot_download
 
 ROOT = Path(__file__).resolve().parents[2]
 CACHE = ROOT / ".ada" / "cache" / "huggingface"
@@ -33,6 +32,9 @@ def main() -> int:
     os.environ["PIP_CACHE_DIR"] = str(ROOT / ".ada" / "cache" / "pip")
     os.environ["TEMP"] = str(ROOT / ".ada" / "cache" / "tmp")
     os.environ["TMP"] = os.environ["TEMP"]
+
+    # Import after setting HF_HOME so Hugging Face does not default to the user profile.
+    from huggingface_hub import hf_hub_download, snapshot_download
 
     for whisper_repo, whisper_dest in (
         (WHISPER_REPO, WHISPER_DEST),
