@@ -81,5 +81,18 @@
     "unreal_mcp": {
         "enabled": true,
         "url": "http://127.0.0.1:8000/mcp"
+    },
+    "brain_profiles": {
+        "boot_brain": "local",
+        "local": "k2-horizon-7b",
+        "big": "gemma-4-12b"
+    },
+    "voice_studio": {
+        "enabled": true,
+        "url": "http://127.0.0.1:3900",
+        "engine": "voxcpm2",
+        "model_id": "voxcpm2",
+        "profile": "Jarvis",
+        "language": "en"
     }
 }
