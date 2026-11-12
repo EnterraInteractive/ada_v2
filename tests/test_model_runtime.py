@@ -62,6 +62,7 @@ def test_vision_model_requires_a_matching_projector(tmp_path):
     model_path = tmp_path / "gemma.gguf"
     model_path.write_bytes(b"test")
     runtime = LocalModelRuntime({"model_runtime": {"vision_model_id": "gemma"}})
+    runtime.project_root = tmp_path
     with pytest.raises(ModelRuntimeError, match="mmproj"):
         runtime._load_model_sync({"id": "gemma", "model_path": str(model_path)})
 
@@ -134,3 +135,12 @@ def test_project_registry_is_extendable_and_settings_override_registry_defaults(
     model = runtime.registry()["future-model"]
     assert model["model_path"] == "models/future/model.gguf"
     assert model["context_size"] == 4096
+
+
+def test_model_paths_outside_the_ada_project_are_rejected(tmp_path):
+    runtime = LocalModelRuntime({"model_runtime": {"models": []}})
+    runtime.project_root = tmp_path
+    outside = tmp_path.parent / "external-model.gguf"
+    outside.write_bytes(b"test")
+    assert runtime._resolve_path(outside) is None
+    assert not runtime._file_exists(outside)
