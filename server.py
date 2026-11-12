@@ -40,6 +40,17 @@ class GalaxyHandler(BaseHTTPRequestHandler):
         with urlopen(request, timeout=60) as response:
             return json.loads(response.read().decode("utf-8"))
 
+    def _backend_raw(self, endpoint: str, payload: dict):
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        request = Request(
+            BACKEND + endpoint,
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urlopen(request, timeout=120) as response:
+            return response.read(), response.headers
+
     def do_GET(self):
         path = unquote(self.path.split("?", 1)[0])
         if path == "/brain":
@@ -99,8 +110,18 @@ class GalaxyHandler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("JSON body must be an object.")
-            if self.path in {"/hear", "/speak"}:
-                self._json(200, self._backend(self.path, payload))
+            if self.path == "/speak":
+                audio, headers = self._backend_raw("/speak", payload)
+                self.send_response(200)
+                self.send_header("Content-Type", headers.get("Content-Type", "audio/wav"))
+                self.send_header("X-Jarvis-Voice", headers.get("X-Jarvis-Voice", "local:piper"))
+                self.send_header("Content-Length", str(len(audio)))
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.end_headers()
+                self.wfile.write(audio)
+                return
+            if self.path == "/hear":
+                self._json(200, self._backend("/hear", payload))
                 return
             if self.path == "/network-audit":
                 self._json(200, self._backend("/network-audit/browser", payload))
