@@ -106,6 +106,24 @@ class LocalVoiceService:
 
             self._whisper, self._piper = await asyncio.to_thread(load)
 
+    async def _load_piper_only(self) -> None:
+        """Load only the local Piper fallback for speech synthesis."""
+        if self._piper is not None:
+            return
+        async with self._load_lock:
+            if self._piper is not None:
+                return
+            piper_path = self._model_path("piper_model_path", "models/voice/piper/en_US-lessac-medium.onnx")
+            piper_config = Path(str(piper_path) + ".json")
+            if not piper_path.is_file() or not piper_config.is_file():
+                raise RuntimeError(f"Local Piper voice is missing: {piper_path} and its JSON config.")
+
+            def load():
+                from piper import PiperVoice
+                return PiperVoice.load(str(piper_path), config_path=str(piper_config))
+
+            self._piper = await asyncio.to_thread(load)
+
     async def _load_whisper_only(self) -> None:
         """Load only the local Whisper model for HTTP transcription requests."""
         if self._whisper is not None:
