@@ -46,11 +46,11 @@ def test_parse_k2_native_ifm_json_tool_call_envelope():
 
 def test_parse_k2_native_ifm_xml_tool_call_envelope():
     content = (
-        "<ifm|tool_calls>\\n"
-        "<ifm|tool_call>read_file\\n"
-        "<ifm|arg_key>path</ifm|arg_key>\\n"
-        "<ifm|arg_value>Source/Character.cpp</ifm|arg_value>\\n"
-        "</ifm|tool_call>\\n"
+        "<ifm|tool_calls>\n"
+        "<ifm|tool_call>read_file\n"
+        "<ifm|arg_key>path</ifm|arg_key>\n"
+        "<ifm|arg_value>Source/Character.cpp</ifm|arg_value>\n"
+        "</ifm|tool_call>\n"
         "</ifm|tool_calls>"
     )
     calls, visible = AssistantEngine._parse_native_tool_calls(content)
