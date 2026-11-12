@@ -51,7 +51,7 @@ if (-not (Test-Path $Python)) {
         Write-Host "Installing managed Python 3.11 under .ada/python..." -ForegroundColor Yellow
         & uv python install 3.11
         if ($LASTEXITCODE -ne 0) { throw "uv could not install Python 3.11 into the project-local Python directory." }
-        & uv venv --seed --python 3.11 $VenvRoot
+        & uv venv --managed-python --seed --python 3.11 $VenvRoot
         if ($LASTEXITCODE -ne 0) { throw "uv could not create the project-local .venv." }
     } else {
         throw "uv is required to place the Python runtime itself under .ada/python. Install uv, then rerun scripts/setup_local.ps1."
