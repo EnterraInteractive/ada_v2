@@ -126,7 +126,7 @@ def test_tool_confirmation_fails_closed_without_a_socket_session():
 
 def test_knowledge_tools_are_registered():
     names = {item["function"]["name"] for item in TOOLS}
-    assert {"search_knowledge", "remember"}.issubset(names)
+    assert {"search_knowledge", "read_knowledge_source", "remember"}.issubset(names)
 
 
 def test_explicit_remember_phrase_saves_without_model_interpretation():
