@@ -439,12 +439,12 @@ async def knowledge_galaxy_remember(payload: dict):
     if not body:
         return {"error": "Tell me what you would like remembered."}
     try:
-        related = await asyncio.to_thread(knowledge_base.search, body, 1)
-        anchor_source_id = related[0]["id"] if related else None
-        saved = await asyncio.to_thread(knowledge_base.remember, body)
-        graph = await asyncio.to_thread(knowledge_base.graph)
+        related = await asyncio.to_thread(galaxy_knowledge_base.search, body, 1)
+        anchor_path = related[0]["path"] if related else None
+        saved = await asyncio.to_thread(galaxy_knowledge_base.remember, body)
+        graph = await asyncio.to_thread(galaxy_knowledge_base.graph)
         node = next((item for item in graph["nodes"] if item["source_id"] == saved["id"]), None)
-        return {"ok": True, **saved, "node": node, "graph": graph, "anchor_source_id": anchor_source_id}
+        return {"ok": True, **saved, "node": node, "graph": graph, "anchor_path": anchor_path}
     except Exception as exc:
         return {"error": f"{type(exc).__name__}: {exc}"}
 
