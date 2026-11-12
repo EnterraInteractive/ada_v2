@@ -93,6 +93,11 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
      status('VOICE UNAVAILABLE · '+(e.message||'no local voice engine is ready'));
    }
  } function interaction(){interacted=true;if(pendingSpeech){const p=pendingSpeech;pendingSpeech='';speak(p);}}
+ function setVoiceBadge(mode){
+   const label=mode==='browser'?'browser local speech':mode==='piper'?'local Piper':'local VoiceStudio';
+   $('brainBadge').textContent='BRAIN '+(lastBrainId||'local')+' · VOICE '+label;
+   $('brainBadge').classList.add('visible');if(brainTimer)clearTimeout(brainTimer);brainTimer=setTimeout(()=>$('brainBadge').classList.remove('visible'),5000);
+ }
  function setBrainBadge(brain,force=false){
    if(!brain||!brain.model_id)return;
    const changed=lastBrainId!==brain.model_id;lastBrainId=brain.model_id;
@@ -139,7 +144,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
       $('answer').textContent=reply;await speak(reply);
     }else{
       const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:text,session_id:sessionId})});const result=await r.json();if(result.error)throw new Error(result.error);
-      $('answer').textContent=result.answer||'';if(result.brain)setBrainBadge(result.brain);if(result.voice_mode)activeVoiceMode=result.voice_mode;await speak(result.answer||'');
+      $('answer').textContent=result.answer||'';if(result.brain)setBrainBadge(result.brain);if(result.voice_mode&&activeVoiceMode!==result.voice_mode){activeVoiceMode=result.voice_mode;setVoiceBadge(activeVoiceMode);}await speak(result.answer||'');
       const ids=(result.nodes||[]).map(Number);
       if(ids.length>=4){highlight(ids);const top=data.nodes.find(n=>n.id===ids[0]);if(top)showNode(top,false);}
       else if(ids.length){const top=ids[0];const neighbors=data.links.filter(l=>Number(l.source?.id??l.source)===top||Number(l.target?.id??l.target)===top).map(l=>Number(l.source?.id??l.source)===top?(l.target?.id??l.target):(l.source?.id??l.source));highlight([top,...neighbors]);const node=data.nodes.find(n=>n.id===top);if(node)showNode(node,true);}
