@@ -71,14 +71,21 @@ def run_browser(question: str) -> list[str]:
             try { return new URL(entry.name).host; } catch { return ''; }
           }).filter(Boolean)
         )]""")
-        page.request.post(VIEWER + "/network-audit", data={"hosts": hosts})
+        page.request.post(VIEWER + "/network-audit", data=json.dumps({"hosts": hosts}), headers={"Content-Type": "application/json"})
         browser.close()
         return hosts
 
 
 def external(host: str) -> bool:
-    value = host.casefold().split(":", 1)[0].strip("[]")
-    return value not in {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
+    value = host.casefold().strip()
+    if value.startswith("[") and "]" in value:
+        value = value[1:value.index("]")]
+    elif value.count(":") == 1:
+        value = value.rsplit(":", 1)[0]
+    return not (
+        value in {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
+        or value.startswith("127.")
+    )
 
 
 def honest_internet_list() -> list[str]:
