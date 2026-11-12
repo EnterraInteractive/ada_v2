@@ -94,8 +94,9 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
          utterance.onend=resolve;utterance.onerror=resolve;synth.speak(utterance);
        });
      }
-   }finally{browserSpeaking=false;if(handsFree)status('● LISTENING · SAY “JARVIS” TO WAKE');}
-   return true;
+     return true;
+   }catch{return false;}
+   finally{browserSpeaking=false;if(handsFree)status('● LISTENING · SAY “JARVIS” TO WAKE');}
  }
  async function fetchSpeech(text,provider=null){
    const response=await fetch('/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(provider?{text,provider}:{text})});
