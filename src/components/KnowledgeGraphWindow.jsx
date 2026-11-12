@@ -210,7 +210,8 @@ export default function KnowledgeGraphWindow({ onClose }) {
                 });
                 const data = await response.json();
                 if (!response.ok || data.error) throw new Error(data.error || 'Memory capture failed.');
-                await loadGraph(data.id, data.anchor_source_id ?? null);
+                const anchor = graph.nodes.find(node => node.path === data.anchor_path);
+                await loadGraph(data.id, anchor?.source_id ?? null);
                 const confirmation = 'Consider it filed, sir. My memory has grown another neuron; try not to make a habit of being interesting.';
                 setAnswer(confirmation);
                 speak(confirmation);
