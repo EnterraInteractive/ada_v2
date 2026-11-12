@@ -15,10 +15,24 @@ Write-Host "A.D.A K2-Horizon runtime setup" -ForegroundColor Cyan
 Write-Host "Project: $ProjectRoot"
 Write-Host "Build:   $BuildRoot"
 
-$Python = (Get-Command python -ErrorAction Stop).Source
+$LocalPython = Join-Path $ProjectRoot ".venv\\Scripts\\python.exe"
+if (Test-Path $LocalPython) {
+    $Python = $LocalPython
+} else {
+    $Python = (Get-Command python -ErrorAction Stop).Source
+    Write-Warning "Project-local .venv was not found. Run scripts\\setup_local.ps1 first; using PATH Python temporarily."
+}
+$CacheRoot = Join-Path $ProjectRoot ".ada\\cache"
+$env:PIP_CACHE_DIR = Join-Path $CacheRoot "pip"
+$env:HF_HOME = Join-Path $CacheRoot "huggingface"
+$env:HUGGINGFACE_HUB_CACHE = Join-Path $env:HF_HOME "hub"
+$env:TEMP = Join-Path $CacheRoot "tmp"
+$env:TMP = $env:TEMP
+New-Item -ItemType Directory -Force -Path $env:PIP_CACHE_DIR,$env:HF_HOME,$env:HUGGINGFACE_HUB_CACHE,$env:TEMP | Out-Null
+
 $PythonVersion = & $Python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
 if ($PythonVersion -ne "3.11") {
-    throw "This pinned Windows build targets Python 3.11. Active Python is $PythonVersion. Activate A.D.A's Python 3.11 environment and rerun."
+    throw "This pinned Windows build targets Python 3.11. Selected interpreter is $Python ($PythonVersion). Run scripts\\setup_local.ps1 with Python 3.11."
 }
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw "Git is required." }
 if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) { throw "CMake is required." }
