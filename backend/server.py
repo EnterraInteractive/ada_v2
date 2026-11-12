@@ -312,13 +312,14 @@ gemini_voice_service = GeminiVoiceService(
     _voice_emit,
     local_query=handle_voice_local_query,
 )
+voice_studio_service = VoiceStudioClient(PROJECT_ROOT, SETTINGS.get("voice_studio", {}))
 local_voice_service = LocalVoiceService(
     _voice_emit,
     local_query=handle_voice_local_query,
     project_root=PROJECT_ROOT,
     config=SETTINGS.get("voice", {}),
+    tts_callback=voice_studio_service.synthesize_pcm16 if SETTINGS.get("voice_studio", {}).get("enabled", True) else None,
 )
-voice_studio_service = VoiceStudioClient(PROJECT_ROOT, SETTINGS.get("voice_studio", {}))
 
 def get_voice_service():
     provider = SETTINGS.get("voice", {}).get("provider", "local")
