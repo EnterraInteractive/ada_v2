@@ -28,6 +28,7 @@ from authenticator import FaceAuthenticator
 from model_runtime import LocalModelRuntime
 from assistant_engine import AssistantEngine
 from project_manager import ProjectManager
+from knowledge_base import KnowledgeBase
 from web_agent import WebAgent
 from unreal_mcp import UnrealMCPClient
 from dotenv import load_dotenv
@@ -75,6 +76,8 @@ DEFAULT_SETTINGS = {
         "browser_wait": False,
         "browser_close": True,
         "search_project": False,
+        "search_knowledge": False,
+        "remember": False,
         "run_terminal_command": True,
         "analyze_image": False,
         "unreal_mcp": True,
@@ -163,6 +166,14 @@ authenticator = None
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 project_manager = ProjectManager(str(PROJECT_ROOT))
+knowledge_base = KnowledgeBase(
+    database_path=PROJECT_ROOT / ".ada" / "knowledge.sqlite3",
+    capture_dir=PROJECT_ROOT / ".ada" / "memory" / "captures",
+    source_roots=lambda: [
+        PROJECT_ROOT / "docs",
+        project_manager.get_current_project_path(),
+    ],
+)
 model_runtime = LocalModelRuntime(SETTINGS)
 assistant_engine = None
 browser_agent = None
@@ -225,7 +236,36 @@ async def startup_event():
         web_agent=browser_agent,
         unreal_mcp=unreal_mcp_client,
         response_callback=send_engine_event,
+        knowledge=knowledge_base,
     )
+
+
+@app.get("/knowledge/graph")
+async def knowledge_graph():
+    return await asyncio.to_thread(knowledge_base.graph)
+
+
+@app.get("/knowledge/search")
+async def knowledge_search(q: str, limit: int = 6):
+    results = await asyncio.to_thread(knowledge_base.search, q, limit)
+    return {"sources": results}
+
+
+@app.post("/knowledge/reindex")
+async def knowledge_reindex():
+    return await asyncio.to_thread(knowledge_base.reindex)
+
+
+@app.post("/knowledge/remember")
+async def knowledge_remember(payload: dict):
+    text = str((payload or {}).get("text", "")).strip()
+    if not text:
+        return {"ok": False, "error": "Memory text is empty."}
+    try:
+        saved = await asyncio.to_thread(knowledge_base.remember, text)
+        return {"ok": True, **saved}
+    except Exception as exc:
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
 @app.get("/status")
