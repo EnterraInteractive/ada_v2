@@ -35,6 +35,8 @@ export default function KnowledgeGraphWindow({ onClose }) {
     const graphRef = useRef(null);
     const sessionRef = useRef(makeSessionId());
     const recognitionRef = useRef(null);
+    const driftTimerRef = useRef(null);
+    const bootGreetingDoneRef = useRef(false);
     const pendingSpeechRef = useRef('');
     const interactedRef = useRef(false);
     const [graph, setGraph] = useState({ nodes: [], links: [], count: 0 });
@@ -159,7 +161,7 @@ export default function KnowledgeGraphWindow({ onClose }) {
                 graphApi.d3VelocityDecay(0.28);
                 graphApi.warmupTicks(80);
                 graphApi.cooldownTime(18000);
-                const driftTimer = setInterval(() => graphApi.d3ReheatSimulation(), 12000);
+                driftTimerRef.current = setInterval(() => graphApi.d3ReheatSimulation(), 12000);
                 graphRef.current = graphApi;
                 graphApi.graphData(data);
                 graphApi.cameraPosition({ x: 0, y: 0, z: 650 }, { x: 0, y: 0, z: 0 }, 0);
@@ -171,6 +173,7 @@ export default function KnowledgeGraphWindow({ onClose }) {
             disposed = true;
             recognitionRef.current?.stop?.();
             window.speechSynthesis?.cancel?.();
+            if (driftTimerRef.current) clearInterval(driftTimerRef.current);
             graphRef.current?._destructor?.();
             graphRef.current = null;
         };
@@ -185,7 +188,8 @@ export default function KnowledgeGraphWindow({ onClose }) {
     }, [highlighted, graph.nodes.length]);
 
     useEffect(() => {
-        if (loading) return;
+        if (loading || bootGreetingDoneRef.current) return;
+        bootGreetingDoneRef.current = true;
         speak('Good evening, sir. ' + graph.count + ' notes indexed, all present and accounted for.');
     }, [graph.count, loading, speak]);
 
