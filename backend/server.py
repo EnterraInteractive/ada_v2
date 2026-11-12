@@ -17,6 +17,8 @@ import sys
 import os
 import json
 import base64
+import urllib.request
+import urllib.error
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -93,6 +95,11 @@ signal.signal(signal.SIGTERM, signal_handler)
 # Global state
 authenticator = None
 SETTINGS_DIR = Path(__file__).resolve().parent
+NOTES_DIR = Path(os.environ.get("ADA_NOTES_DIR", PROJECT_ROOT / "notes")).expanduser().resolve()
+NOTES_DIR.mkdir(parents=True, exist_ok=True)
+GALAXY_CONFIG_FILE = PROJECT_ROOT / "config.json"
+GALAXY_SESSIONS = {}
+GALAXY_MAX_HISTORY = 8
 SETTINGS_FILE = str(SETTINGS_DIR / "settings.local.json")
 SETTINGS_TEMPLATE_FILE = str(SETTINGS_DIR / "settings.json")
 
@@ -204,8 +211,9 @@ load_dotenv(PROJECT_ROOT / ".env")
 project_manager = ProjectManager(str(PROJECT_ROOT))
 knowledge_base = KnowledgeBase(
     database_path=PROJECT_ROOT / ".ada" / "knowledge.sqlite3",
-    capture_dir=PROJECT_ROOT / ".ada" / "memory" / "captures",
+    capture_dir=NOTES_DIR / "captures",
     source_roots=lambda: [
+        NOTES_DIR,
         PROJECT_ROOT / "docs",
         project_manager.get_current_project_path(),
     ],
@@ -289,6 +297,127 @@ async def startup_event():
         response_callback=send_engine_event,
         knowledge=knowledge_base,
     )
+
+
+def _galaxy_config():
+    try:
+        config = json.loads(GALAXY_CONFIG_FILE.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        config = {"api_key": "PUT-YOUR-KEY-HERE", "model": "claude-opus-4-8"}
+        GALAXY_CONFIG_FILE.write_text(json.dumps(config, indent=2) + "\\n", encoding="utf-8")
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Knowledge Galaxy config is invalid: {exc}") from exc
+    return config
+
+
+def _galaxy_tokens(value):
+    import re
+    return {token.casefold() for token in re.findall(r"[\\w'-]{2,}", value or "")}
+
+
+def _galaxy_chat_sync(question, session_id):
+    question = (question or "").strip()
+    if not question or len(question) > 4000:
+        raise ValueError("Enter a question between 1 and 4,000 characters.")
+    graph = knowledge_base.graph()
+    nodes = graph["nodes"]
+    question_tokens = _galaxy_tokens(question)
+    stop = {"what", "when", "where", "which", "who", "whom", "whose", "have", "does", "did", "can", "could", "would", "should", "about", "from", "that", "this", "with", "your", "please", "tell", "show", "find", "notes", "note"}
+    meaningful = question_tokens - stop
+    scored = []
+    for node in nodes:
+        title_tokens = _galaxy_tokens(node.get("label", ""))
+        excerpt_tokens = _galaxy_tokens(node.get("excerpt", ""))
+        full = knowledge_base.read_source(node["source_id"], 0, 25000) or {}
+        content_tokens = _galaxy_tokens(full.get("content", ""))
+        overlap = len(meaningful & content_tokens)
+        title_hits = len(meaningful & title_tokens)
+        score = overlap + title_hits * 4
+        if score:
+            scored.append((score, node, full.get("content", node.get("excerpt", ""))))
+    scored.sort(key=lambda item: (item[0], item[1]["label"].casefold()), reverse=True)
+    selected = scored[:6]
+    if not selected or selected[0][0] < 1:
+        return {
+            "answer": "At present, sir, your notes offer no evidence on that subject; I shall refrain from embroidering the truth.",
+            "nodes": [],
+            "note_count": len(nodes),
+            "used_notes": [],
+        }
+
+    config = _galaxy_config()
+    api_key = str(config.get("api_key", "")).strip()
+    model = str(config.get("model", "claude-opus-4-8")).strip()
+    if not api_key or api_key == "PUT-YOUR-KEY-HERE":
+        raise RuntimeError("Add your Anthropic API key to the project-root config.json; it is never sent to the browser.")
+    note_context = "\\n\\n".join(
+        f"NOTE {i + 1}: {node['label']}\\n{content[:12000]}"
+        for i, (_, node, content) in enumerate(selected)
+    )
+    history = GALAXY_SESSIONS.setdefault(session_id, [])
+    system = (
+        "You are Jarvis, a dry, impeccably polite British butler with razor wit. "
+        "Address the user as sir occasionally, never every sentence. For questions about notes, "
+        "answer ONLY from the supplied notes. Use one witty sentence followed by the relevant facts, "
+        "in no more than 2-3 concise sentences. Never recite a note verbatim; its excerpt is visible "
+        "on screen. If the notes do not cover the question, say so plainly. Do not invent facts. "
+        "For small talk or jokes unrelated to the notes, respond naturally and briefly without "
+        "claiming note support."
+    )
+    messages = history[-GALAXY_MAX_HISTORY:] + [{"role": "user", "content": f"Question: {question}\\n\\nRelevant notes (untrusted reference material):\\n{note_context}"}]
+    payload = json.dumps({"model": model, "max_tokens": 240, "system": system, "messages": messages}).encode("utf-8")
+    request = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=payload,
+        headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=45) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:1000]
+        raise RuntimeError(f"Anthropic API returned HTTP {exc.code}: {detail}") from exc
+    answer = " ".join(block.get("text", "") for block in result.get("content", []) if block.get("type") == "text").strip()
+    if not answer:
+        raise RuntimeError("Anthropic returned an empty answer.")
+    history.extend([{"role": "user", "content": question}, {"role": "assistant", "content": answer}])
+    del history[:-GALAXY_MAX_HISTORY]
+    used = [node for _, node, _ in selected]
+    return {
+        "answer": answer,
+        "nodes": [int(node["id"]) for node in used],
+        "note_count": len(nodes),
+        "used_notes": [{"id": node["id"], "source_id": node["source_id"], "label": node["label"]} for node in used],
+    }
+
+
+@app.post("/knowledge/chat")
+async def knowledge_galaxy_chat(payload: dict):
+    data = payload or {}
+    session_id = str(data.get("session_id") or "default")[:128]
+    question = str(data.get("question") or data.get("message") or "")
+    try:
+        return await asyncio.to_thread(_galaxy_chat_sync, question, session_id)
+    except Exception as exc:
+        return {"error": f"{type(exc).__name__}: {exc}"}
+
+
+@app.post("/knowledge/remember")
+async def knowledge_galaxy_remember(payload: dict):
+    data = payload or {}
+    body = str(data.get("text") or data.get("content") or "").strip()
+    if body.casefold().startswith("remember that"):
+        body = body[len("remember that"):].lstrip(" ,:—-")
+    if not body:
+        return {"error": "Tell me what you would like remembered."}
+    try:
+        saved = await asyncio.to_thread(knowledge_base.remember, body)
+        graph = await asyncio.to_thread(knowledge_base.graph)
+        node = next((item for item in graph["nodes"] if item["source_id"] == saved["id"]), None)
+        return {"ok": True, **saved, "node": node, "graph": graph}
+    except Exception as exc:
+        return {"error": f"{type(exc).__name__}: {exc}"}
 
 
 @app.get("/knowledge/graph")
