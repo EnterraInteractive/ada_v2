@@ -82,6 +82,13 @@ class VoiceStudioClient:
         self._warmed = False
         self._last_warm = 0.0
 
+    def warm(self) -> None:
+        """Select the configured engine/profile and warm it with a discarded line."""
+        self._select()
+        self._render_wav("Standing by.")
+        self._warmed = True
+        self._last_warm = time.monotonic()
+
     def _wav_to_pcm(self, wav_bytes: bytes, target_rate: int = 24000) -> bytes:
         import io
         with wave.open(io.BytesIO(wav_bytes), "rb") as wav:
