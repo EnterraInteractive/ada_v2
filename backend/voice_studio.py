@@ -130,6 +130,8 @@ class VoiceStudioClient:
         return self._request("/v1/audio/speech", payload, timeout=120.0)
 
     def synthesize_pcm16(self, text: str) -> bytes:
+        if len(text) > 600:
+            raise VoiceStudioError("VoiceStudio requests are limited to 600 characters; send sentence-sized chunks.")
         self._select()
         cache_key = hashlib.sha256(
             (self.profile_id + "\\0" + text).encode("utf-8")
