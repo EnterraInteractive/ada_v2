@@ -148,7 +148,11 @@ class VoiceStudioClient:
         except VoiceStudioError:
             # VoiceStudio may have restarted and lost its selected engine/profile.
             self._selected = False
+            self._warmed = False
             self._select()
+            self._render_wav("Standing by.")
+            self._warmed = True
+            self._last_warm = time.monotonic()
             audio = self._render_wav(text)
         temporary = cached.with_suffix(".wav.tmp")
         temporary.write_bytes(audio)
