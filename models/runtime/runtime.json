@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "primary_model_runtime": {
+    "package": "llama-cpp-python",
+    "package_version": "0.3.36",
+    "llama_cpp_minimum_release": "b11454",
+    "llama_cpp_build_release": "b11454",
+    "build_method": "project-local source build",
+    "windows": {
+      "python": "3.11",
+      "cuda_toolkit": "13.x",
+      "gpu_architecture": "sm_120",
+      "cmake_options": [
+        "-DGGML_CUDA=on",
+        "-DCMAKE_CUDA_ARCHITECTURES=120"
+      ]
+    },
+    "installer": "scripts/ai/install_k2_runtime.ps1",
+    "verifier": "scripts/ai/verify_k2_runtime.py"
+  },
+  "notes": [
+    "Do not install the stock PyPI llama-cpp-python wheel for K2-Horizon.",
+    "The installer replaces the source distribution's bundled llama.cpp checkout with upstream b11454 before compiling the in-process Python binding.",
+    "Model weights remain local and are not committed to Git."
+  ]
+}
