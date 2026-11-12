@@ -591,7 +591,7 @@ async def knowledge_galaxy_hear(payload: dict):
         audio = base64.b64decode(encoded, validate=True)
         if not audio or len(audio) % 2:
             raise ValueError("Audio must be signed 16-bit mono PCM.")
-        await local_voice_service._load_models()
+        await local_voice_service._load_whisper_only()
         transcript = await asyncio.to_thread(local_voice_service._transcribe, audio)
         return {"ok": True, "transcript": transcript}
     except Exception as exc:
