@@ -67,6 +67,7 @@ from unreal_mcp import UnrealMCPClient
 from dotenv import load_dotenv
 from gemini_voice import GeminiVoiceService
 from local_voice import LocalVoiceService
+from voice_studio import VoiceStudioClient
 
 # Create a Socket.IO server
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
@@ -151,7 +152,8 @@ DEFAULT_SETTINGS = {
             {"id": "gemma-4-12b", "name": "Gemma 4 12B Vision", "model_path": "models/vision/gemma-4-12b/model.gguf", "mmproj_path": "models/vision/gemma-4-12b/mmproj.gguf", "chat_handler": "gemma4", "chat_template_kwargs": {"enable_thinking": true}, "capabilities": ["chat", "vision"], "context_size": 8192, "gpu_layers": 99, "max_tokens": 2048, "temperature": 1.0, "top_p": 0.95, "top_k": 64}
         ]
     },
-    "voice": {"provider": "local", "enabled": True, "whisper_model_path": "models/voice/whisper-small", "piper_model_path": "models/voice/piper/en_US-lessac-medium.onnx", "whisper_device": "cuda", "whisper_compute_type": "float16"}
+    "voice": {"provider": "local", "enabled": True, "whisper_model_path": "models/voice/whisper-small", "piper_model_path": "models/voice/piper/en_US-lessac-medium.onnx", "whisper_device": "cuda", "whisper_compute_type": "float16"},
+    "voice_studio": {"enabled": True, "url": "http://127.0.0.1:3900", "engine": "voxcpm2", "model_id": "voxcpm2", "profile": "Jarvis", "language": "en"}
 }
 
 SETTINGS = copy.deepcopy(DEFAULT_SETTINGS)
@@ -190,6 +192,8 @@ def load_settings():
                          SETTINGS["model_runtime"].update(runtime_values)
                          for legacy_key in ("executable", "host", "port", "startup_timeout_seconds"):
                              SETTINGS["model_runtime"].pop(legacy_key, None)
+                    elif k == "voice_studio" and isinstance(v, dict):
+                        SETTINGS["voice_studio"].update(v)
                     elif k == "voice" and isinstance(v, dict):
                         # Keep provider selection explicit. Legacy configurations
                         # are migrated to the project-local voice pipeline.
@@ -257,6 +261,7 @@ local_voice_service = LocalVoiceService(
     project_root=PROJECT_ROOT,
     config=SETTINGS.get("voice", {}),
 )
+voice_studio_service = VoiceStudioClient(PROJECT_ROOT, SETTINGS.get("voice_studio", {}))
 
 def get_voice_service():
     provider = SETTINGS.get("voice", {}).get("provider", "local")
@@ -497,9 +502,18 @@ async def knowledge_galaxy_speak(payload: dict):
     if not text or len(text) > 12000:
         return {"error": "Speech text must contain between 1 and 12,000 characters."}
     try:
-        await local_voice_service._load_models()
-        audio = await asyncio.to_thread(local_voice_service._synthesize, text)
-        return {"ok": True, "audio_pcm16": base64.b64encode(audio).decode("ascii"), "sample_rate": 24000}
+        provider = "piper"
+        audio = None
+        if SETTINGS.get("voice_studio", {}).get("enabled", True):
+            try:
+                audio = await asyncio.to_thread(voice_studio_service.synthesize_pcm16, text)
+                provider = "voicestudio:" + str(SETTINGS.get("voice_studio", {}).get("profile", "Jarvis"))
+            except Exception as studio_exc:
+                print(f"[VOICE] VoiceStudio unavailable; using local Piper fallback: {type(studio_exc).__name__}: {studio_exc}")
+        if audio is None:
+            await local_voice_service._load_models()
+            audio = await asyncio.to_thread(local_voice_service._synthesize, text)
+        return {"ok": True, "provider": provider, "audio_pcm16": base64.b64encode(audio).decode("ascii"), "sample_rate": 24000}
     except Exception as exc:
         return {"error": f"{type(exc).__name__}: {exc}"}
 
