@@ -159,7 +159,7 @@ class LocalModelRuntime:
         except Exception as exc:
             raise ModelRuntimeError(
                 "The in-process llama-cpp-python runtime is unavailable. "
-                "Install the CUDA-enabled package from A.D.A's requirements."
+                "Run scripts/ai/install_k2_runtime.ps1 from the A.D.A project root."
             ) from exc
 
         requested_gpu_layers = int(model_config.get("gpu_layers", -1))
