@@ -116,6 +116,13 @@ class LocalModelRuntime:
                 "Install the CUDA-enabled package from A.D.A's requirements."
             ) from exc
 
+        requested_gpu_layers = int(model_config.get("gpu_layers", -1))
+        if requested_gpu_layers != 0 and not llama_cpp.llama_supports_gpu_offload():
+            raise ModelRuntimeError(
+                "This llama-cpp-python build has no GPU offload support. Install A.D.A's CUDA 13.0 wheel, "
+                "or set GPU layers to 0 to explicitly use CPU inference."
+            )
+
         chat_handler = None
         if is_vision_model:
             handler_name = str(model_config.get("chat_handler") or ("gemma4" if model_id == "gemma-4-12b" else "mtmd")).lower()
