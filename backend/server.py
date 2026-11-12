@@ -465,6 +465,10 @@ async def _galaxy_chat(question, session_id):
             if re.search(pattern, question, re.IGNORECASE):
                 return {"answer": reply, "nodes": [], "note_count": len(nodes), "used_notes": []}
 
+    brain_command = await intercept_brain_command(question)
+    if brain_command:
+        return {"answer": brain_command, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status()}
+
     history = GALAXY_SESSIONS.setdefault(session_id, [])
     retrieval_question = question
     for prior in reversed(history):
@@ -516,9 +520,6 @@ async def _galaxy_chat(question, session_id):
     })
 
     # Inference stays inside A.D.A's existing local llama.cpp runtime.
-    brain_command = await intercept_brain_command(question)
-    if brain_command:
-        return {"answer": brain_command, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status()}
     result = await model_runtime.chat(messages=messages, max_tokens=600)
     choice = (result.get("choices") or [{}])[0]
     answer = str((choice.get("message") or {}).get("content") or "").strip()
