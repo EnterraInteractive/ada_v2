@@ -53,6 +53,9 @@ class GalaxyHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = unquote(self.path.split("?", 1)[0])
+        if path == "/health":
+            self._json(200, {"ok": True, "service": "knowledge-galaxy"})
+            return
         if path == "/brain":
             try:
                 request = Request(BACKEND + "/brain/status", headers={"Accept": "application/json"})
