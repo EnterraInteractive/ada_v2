@@ -297,12 +297,19 @@ async def start_audio(sid, data=None):
         await sio.emit("error", {"msg": "Authentication Required"}, room=sid)
         return
 
+    voice_config = SETTINGS.get("voice", {})
+    if voice_config.get("provider", "gemini_api") == "gemini_api":
+        if not voice_config.get("enabled", False):
+            await sio.emit("error", {"msg": "Gemini API voice is selected but disabled. Configure the Gemini API key and enable voice after the API adapter is installed."}, room=sid)
+            return
+        await sio.emit("error", {"msg": "Gemini API voice is selected. The remote voice transport still needs to be connected; local voice fallback is intentionally disabled."}, room=sid)
+        return
+
     if voice_service and voice_service.started:
         await sio.emit("status", {"msg": "Local voice is already running."}, room=sid)
         return
 
     device_name = (data or {}).get("device_name")
-    voice_config = SETTINGS.get("voice", {})
     await sio.emit("status", {"msg": "Loading local speech recognition model..."}, room=sid)
 
     async def on_speech(recognized_text):
