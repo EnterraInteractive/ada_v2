@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile, rename, stat } from "node:fs/promises";
+import { mkdir, readFile, writeFile, rename, rm, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -30,6 +30,7 @@ if (!(await validExisting())) {
   }
   const temporary = target + ".tmp";
   await writeFile(temporary, bytes);
+  await rm(target, { force: true });
   await rename(temporary, target);
 }
 
