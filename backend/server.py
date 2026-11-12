@@ -324,13 +324,15 @@ async def intercept_remember_command(prompt: str):
 
 
 def voice_status():
-    if SETTINGS.get("voice_studio", {}).get("enabled", True):
-        return {"provider": "voicestudio", "profile": ACTIVE_VOICE, "fallback": "piper"}
-    return {"provider": "piper", "profile": "en_US-lessac-medium", "fallback": None}
+    if VOICE_MODE == "browser":
+        return {"provider": "browser", "profile": "local operating-system voice", "fallback": None, "mode": VOICE_MODE}
+    if VOICE_MODE == "piper":
+        return {"provider": "piper", "profile": "en_US-lessac-medium", "fallback": "browser", "mode": VOICE_MODE}
+    return {"provider": "voicestudio", "profile": ACTIVE_VOICE, "fallback": "piper then browser", "mode": VOICE_MODE}
 
 
 async def intercept_voice_command(prompt: str):
-    global ACTIVE_VOICE
+    global ACTIVE_VOICE, VOICE_MODE
     value = (prompt or "").strip()
     folded = value.casefold()
     if re.search(r"\b(which|what) voice (are you using|is active)\b", folded):
@@ -343,15 +345,20 @@ async def intercept_voice_command(prompt: str):
             SETTINGS.setdefault("voice_studio", {})["enabled"] = False
             local_voice_service.tts_callback = None
             return f"VoiceStudio is not ready, sir; I shall keep using local Piper. {exc}"
+        VOICE_MODE = "local"
         SETTINGS.setdefault("voice_studio", {})["enabled"] = True
         local_voice_service.tts_callback = voice_studio_service.synthesize_pcm16
         return f"Certainly, sir. The cloned {ACTIVE_VOICE} voice is selected."
     if re.search(r"\b(use|switch to) (the )?(piper|fallback) voice\b", folded):
+        VOICE_MODE = "piper"
         SETTINGS.setdefault("voice_studio", {})["enabled"] = False
         local_voice_service.tts_callback = None
         return "The local Piper voice is now selected, sir."
     if re.search(r"\b(use|switch to) (the )?browser voice\b", folded):
-        return "Browser speech is disabled in this offline build, sir; I shall use the local voice engines."
+        VOICE_MODE = "browser"
+        SETTINGS.setdefault("voice_studio", {})["enabled"] = False
+        local_voice_service.tts_callback = None
+        return "The local browser voice is now selected, sir."
     match = re.search(r"\bswitch to voice (.+)$", value, re.IGNORECASE)
     if match:
         profile = match.group(1).strip().strip('". ')
@@ -359,6 +366,7 @@ async def intercept_voice_command(prompt: str):
             await asyncio.to_thread(voice_studio_service.set_profile, profile)
             SETTINGS.setdefault("voice_studio", {})["profile"] = profile
             ACTIVE_VOICE = profile
+            VOICE_MODE = "local"
             SETTINGS["voice_studio"]["enabled"] = True
             local_voice_service.tts_callback = voice_studio_service.synthesize_pcm16
             return f"The {profile} voice is selected, sir."
@@ -389,6 +397,7 @@ gemini_voice_service = GeminiVoiceService(
 )
 voice_studio_service = VoiceStudioClient(PROJECT_ROOT, SETTINGS.get("voice_studio", {}))
 ACTIVE_VOICE = str(SETTINGS.get("voice_studio", {}).get("profile", "Jarvis"))
+VOICE_MODE = "local"
 local_voice_service = LocalVoiceService(
     _voice_emit,
     local_query=handle_voice_local_query,
@@ -557,7 +566,7 @@ async def _galaxy_chat(question, session_id):
 
     remember_command = await intercept_remember_command(question)
     if remember_command:
-        return {"answer": remember_command, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status()}
+        return {"answer": remember_command, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status(), "voice_mode": VOICE_MODE}
     voice_command = await intercept_voice_command(question)
     if voice_command:
         return {"answer": voice_command, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status()}
@@ -784,6 +793,11 @@ async def network_audit_status():
 async def network_audit_clear():
     clear_events()
     return {"ok": True}
+
+
+@app.get("/voice/status")
+async def get_voice_status():
+    return voice_status()
 
 
 @app.get("/brain/status")
