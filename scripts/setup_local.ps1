@@ -6,9 +6,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$LocalDataRoot = Join-Path $ProjectRoot ".ada"
+$CacheRoot = Join-Path $LocalDataRoot "cache"
+$ToolsRoot = Join-Path $LocalDataRoot "tools"
+$PythonInstallRoot = Join-Path $LocalDataRoot "python"
 $VenvRoot = Join-Path $ProjectRoot ".venv"
 $Python = Join-Path (Join-Path $VenvRoot "Scripts") "python.exe"
-$CacheRoot = Join-Path (Join-Path $ProjectRoot ".ada") "cache"
 
 $Directories = @(
     $CacheRoot,
@@ -18,38 +21,41 @@ $Directories = @(
     (Join-Path $CacheRoot "xdg"),
     (Join-Path $CacheRoot "torch"),
     (Join-Path $CacheRoot "tmp"),
-    (Join-Path (Join-Path $ProjectRoot ".ada") "browsers")
+    (Join-Path $CacheRoot "downloads"),
+    $ToolsRoot,
+    $PythonInstallRoot,
+    (Join-Path $LocalDataRoot "browsers")
 )
 New-Item -ItemType Directory -Force -Path $Directories | Out-Null
 
-# Route installer caches and browser downloads into this repository.
+# All managed interpreters, packages, caches, and browser downloads stay in Ada.
+$env:UV_CACHE_DIR = Join-Path $CacheRoot "uv"
+$env:UV_PYTHON_INSTALL_DIR = $PythonInstallRoot
 $env:PIP_CACHE_DIR = Join-Path $CacheRoot "pip"
 $env:HF_HOME = Join-Path $CacheRoot "huggingface"
 $env:HUGGINGFACE_HUB_CACHE = Join-Path $env:HF_HOME "hub"
 $env:XDG_CACHE_HOME = Join-Path $CacheRoot "xdg"
 $env:TORCH_HOME = Join-Path $CacheRoot "torch"
-$env:PLAYWRIGHT_BROWSERS_PATH = Join-Path (Join-Path $ProjectRoot ".ada") "browsers"
+$env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $LocalDataRoot "browsers"
 $env:TEMP = Join-Path $CacheRoot "tmp"
 $env:TMP = $env:TEMP
 
 Write-Host "A.D.A project-local setup" -ForegroundColor Cyan
 Write-Host "Project: $ProjectRoot"
-Write-Host "Environment: $VenvRoot"
+Write-Host "Python install: $PythonInstallRoot"
+Write-Host "Virtual environment: $VenvRoot"
 Write-Host "Caches and browser runtime: $CacheRoot"
 
 if (-not (Test-Path $Python)) {
-    if (Get-Command py -ErrorAction SilentlyContinue) {
-        & py -3.11 -m venv $VenvRoot
-    } elseif (Get-Command python -ErrorAction SilentlyContinue) {
-        $Detected = & python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
-        if ($Detected -ne "3.11") {
-            throw "Python 3.11 is required to create .venv. Found Python $Detected. Install Python 3.11, then rerun."
-        }
-        & python -m venv $VenvRoot
+    if (Get-Command uv -ErrorAction SilentlyContinue) {
+        Write-Host "Installing managed Python 3.11 under .ada/python..." -ForegroundColor Yellow
+        & uv python install 3.11
+        if ($LASTEXITCODE -ne 0) { throw "uv could not install Python 3.11 into the project-local Python directory." }
+        & uv venv --seed --python 3.11 $VenvRoot
+        if ($LASTEXITCODE -ne 0) { throw "uv could not create the project-local .venv." }
     } else {
-        throw "Python 3.11 is required. Install Python 3.11, then rerun."
+        throw "uv is required to place the Python runtime itself under .ada/python. Install uv, then rerun scripts/setup_local.ps1."
     }
-    if ($LASTEXITCODE -ne 0) { throw "Could not create the project-local Python environment." }
 }
 
 if (-not (Test-Path $Python)) { throw "Project-local Python was not created: $Python" }
@@ -63,18 +69,34 @@ if ($LASTEXITCODE -ne 0) { throw "Could not upgrade pip in .venv." }
 if ($LASTEXITCODE -ne 0) { throw "Python dependency installation failed." }
 
 if (-not $SkipPlaywright) {
-    Write-Host "Installing Chromium into .ada\\browsers..." -ForegroundColor Yellow
+    Write-Host "Installing Chromium into .ada/browsers..." -ForegroundColor Yellow
     & $Python -m playwright install chromium
     if ($LASTEXITCODE -ne 0) { throw "Playwright Chromium installation failed." }
 }
 
+$NodeVersion = "v24.20.0"
+$NodeFolder = "node-$NodeVersion-win-x64"
+$NodeRoot = Join-Path $ToolsRoot $NodeFolder
+$NodeExe = Join-Path $NodeRoot "node.exe"
+$NpmCommand = Join-Path $NodeRoot "npm.cmd"
+
 if (-not $SkipNode) {
-    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-        throw "Node.js/npm is required for the React/Electron interface. Install Node.js, then rerun."
+    if (-not (Test-Path $NodeExe)) {
+        $NodeArchive = Join-Path (Join-Path $CacheRoot "downloads") "$NodeFolder.zip"
+        $NodeUrl = "https://nodejs.org/dist/$NodeVersion/$NodeFolder.zip"
+        Write-Host "Downloading portable Node.js $NodeVersion into .ada/tools..." -ForegroundColor Yellow
+        Invoke-WebRequest -Uri $NodeUrl -OutFile $NodeArchive -UseBasicParsing
+        Expand-Archive -Path $NodeArchive -DestinationPath $ToolsRoot -Force
     }
+    if (-not (Test-Path $NpmCommand)) { throw "Portable npm was not found under $NodeRoot." }
+    $env:PATH = "$NodeRoot;$env:PATH"
     Write-Host "Installing frontend dependencies into node_modules..." -ForegroundColor Yellow
-    & npm ci --cache (Join-Path $CacheRoot "npm")
+    & $NpmCommand ci --cache (Join-Path $CacheRoot "npm")
     if ($LASTEXITCODE -ne 0) { throw "npm ci failed." }
+} elseif (Test-Path $NodeExe) {
+    $env:PATH = "$NodeRoot;$env:PATH"
+} elseif (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+    throw "npm is not available. Run setup_local.ps1 without -SkipNode to install portable Node."
 }
 
 # Copy MediaPipe's WASM binaries into Vite's public folder so gesture tracking
@@ -88,8 +110,8 @@ New-Item -ItemType Directory -Force -Path $MediapipeDestination | Out-Null
 Copy-Item -Path (Join-Path $MediapipeSource "*") -Destination $MediapipeDestination -Recurse -Force
 
 Write-Host ""
-Write-Host "PASS: Python packages, caches, and browser runtime are project-local." -ForegroundColor Green
+Write-Host "PASS: Python runtime, Python packages, Node.js, npm packages, caches, MediaPipe WASM, and browser runtime are project-local." -ForegroundColor Green
 Write-Host "Next: powershell -ExecutionPolicy Bypass -File scripts/ai/install_k2_runtime.ps1"
 Write-Host "Then: .venv/Scripts/python.exe scripts/ai/download_k2_model.py"
 Write-Host "Then: .venv/Scripts/python.exe scripts/ai/verify_k2_runtime.py --full --tool-test"
-Write-Host "Note: NVIDIA drivers, CUDA Toolkit 13.x, Git, CMake, and Node.js remain machine-level prerequisites."
+Write-Host "Note: NVIDIA driver, CUDA Toolkit 13.x, Git, CMake, and uv remain machine-level prerequisites."
