@@ -307,7 +307,7 @@ async def start_audio(sid, data=None):
         return
 
     try:
-        await voice_service.start(sid)
+        await voice_service.start(sid, voice_config.get("model"))
     except Exception as exc:
         print(f"[VOICE] Gemini session could not start: {type(exc).__name__}: {exc}")
         await sio.emit("voice_error", {"message": str(exc)}, room=sid)
@@ -359,7 +359,10 @@ async def shutdown(sid, data=None):
     print("[SERVER] SHUTDOWN SIGNAL RECEIVED FROM FRONTEND")
     print("[SERVER] ========================================")
     
-    # Close browser resources and stop the managed local inference process.
+    # Close active API voice sessions before shutting down the backend.
+    await voice_service.stop_all()
+
+    # Close browser resources and stop the local inference runtime.
     if browser_agent:
         await browser_agent.close()
     await model_runtime.stop()
