@@ -27,6 +27,7 @@ from pathlib import Path
 # Default every runtime/cache location to the Ada project so manual backend
 # launches behave the same as Electron launches and do not fill the user profile.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+NETWORK_AUDIT_LOG = install_network_audit(PROJECT_ROOT)
 LOCAL_DATA_ROOT = PROJECT_ROOT / ".ada"
 LOCAL_CACHE_ROOT = LOCAL_DATA_ROOT / "cache"
 LOCAL_PATHS = {
@@ -68,6 +69,7 @@ from dotenv import load_dotenv
 from gemini_voice import GeminiVoiceService
 from local_voice import LocalVoiceService
 from voice_studio import VoiceStudioClient
+from network_audit import install as install_network_audit, record_browser_resources, read_events, clear_events
 
 # Create a Socket.IO server
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
@@ -670,6 +672,25 @@ async def knowledge_source(source_id: int, offset: int = 0, limit: int = 18000):
 @app.post("/knowledge/reindex")
 async def knowledge_reindex():
     return await asyncio.to_thread(knowledge_base.reindex)
+
+
+@app.post("/network-audit/browser")
+async def network_audit_browser(payload: dict):
+    hosts = (payload or {}).get("hosts") or []
+    if not isinstance(hosts, list):
+        return {"ok": False, "error": "hosts must be an array."}
+    return {"ok": True, "recorded": record_browser_resources(hosts)}
+
+
+@app.get("/network-audit")
+async def network_audit_status():
+    return {"log": str(NETWORK_AUDIT_LOG), "events": read_events()}
+
+
+@app.post("/network-audit/clear")
+async def network_audit_clear():
+    clear_events()
+    return {"ok": True}
 
 
 @app.get("/brain/status")
