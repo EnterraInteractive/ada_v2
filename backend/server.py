@@ -321,7 +321,7 @@ def _galaxy_graph_data():
     graph = galaxy_knowledge_base.graph()
     for node in graph["nodes"]:
         stem = Path(node.get("path", "")).stem
-        stem = re.sub(r"^\\d{8}_\\d{6}_\\d+_", "", stem)
+        stem = re.sub(r"^\d{8}_\d{6}_\d+_", "", stem)
         node["label"] = stem.replace("_", " ").replace("-", " ").strip() or node.get("label", "Untitled")
     return graph
 
