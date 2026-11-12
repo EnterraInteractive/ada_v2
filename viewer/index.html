@@ -170,7 +170,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  }
  async function reportBrowserResources(){
    const hosts=[...new Set(performance.getEntriesByType('resource').map(entry=>{try{return new URL(entry.name).host;}catch{return '';}}).filter(Boolean))];
-   try{await fetch('/network-audit/browser',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hosts})});}catch{}
+   try{await fetch('/network-audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hosts})});}catch{}
  }
  async function ask(text){
    text=(text||$('question').value).trim();if(!text||busy)return;interaction();clearError();busy=true;$('send').disabled=true;status('● thinking…');$('question').value='';
