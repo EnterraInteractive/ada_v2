@@ -86,6 +86,13 @@ if (-not $SkipNode) {
         $NodeUrl = "https://nodejs.org/dist/$NodeVersion/$NodeFolder.zip"
         Write-Host "Downloading portable Node.js $NodeVersion into .ada/tools..." -ForegroundColor Yellow
         Invoke-WebRequest -Uri $NodeUrl -OutFile $NodeArchive -UseBasicParsing
+        $ChecksumFile = Join-Path (Join-Path $CacheRoot "downloads") "SHASUMS256.txt"
+        Invoke-WebRequest -Uri "https://nodejs.org/dist/$NodeVersion/SHASUMS256.txt" -OutFile $ChecksumFile -UseBasicParsing
+        $ChecksumLine = Select-String -Path $ChecksumFile -Pattern ("^([0-9a-fA-F]{64})\\s+" + [regex]::Escape("$NodeFolder.zip") + "$") | Select-Object -First 1
+        if (-not $ChecksumLine) { throw "Could not find the published SHA-256 for $NodeFolder.zip." }
+        $ExpectedHash = $ChecksumLine.Matches[0].Groups[1].Value.ToLowerInvariant()
+        $ActualHash = (Get-FileHash -Path $NodeArchive -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($ActualHash -ne $ExpectedHash) { throw "Portable Node archive SHA-256 verification failed." }
         Expand-Archive -Path $NodeArchive -DestinationPath $ToolsRoot -Force
     }
     if (-not (Test-Path $NpmCommand)) { throw "Portable npm was not found under $NodeRoot." }
