@@ -146,7 +146,7 @@ DEFAULT_SETTINGS = {
         "unreal_mcp_readonly": False
     },
     "camera_flipped": False,
-    "workspace_path": "E:\\Unreal Projects\\EnterraOnline",
+    "workspace_path": str(PROJECT_ROOT / "workspace"),
     "unreal_mcp": {"enabled": True, "url": "http://127.0.0.1:8000/mcp"},
     "model_runtime": {
         "primary_model_id": "k2-horizon-7b",
