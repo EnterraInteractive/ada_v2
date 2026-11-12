@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, RefreshCw, Mic, MicOff, Send, Network, FileText, Volume2, VolumeX } from 'lucide-react';
 
-const API = 'http://127.0.0.1:8001/knowledge';
+const API = 'http://127.0.0.1:8001/galaxy';
 const GRAPH_CDN = 'https://unpkg.com/3d-force-graph@1.73.3/dist/3d-force-graph.min.js';
 
 function loadGraphLibrary() {
