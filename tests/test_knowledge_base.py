@@ -52,3 +52,18 @@ def test_graph_uses_contiguous_array_ids_and_links_wikilinks(tmp_path):
     assert [node["id"] for node in graph["nodes"]] == list(range(len(graph["nodes"])))
     assert graph["count"] == 2
     assert len(graph["links"]) == 1
+
+
+
+def test_read_source_returns_bounded_chunks_and_offsets(tmp_path):
+    knowledge, docs = make_knowledge(tmp_path)
+    (docs / "Long Note.md").write_text("# Long Note\n\n" + ("Alderlight river. " * 2500), encoding="utf-8")
+    results = knowledge.search("Alderlight river")
+    source_id = results[0]["id"]
+
+    first = knowledge.read_source(source_id, offset=0, limit=1000)
+    second = knowledge.read_source(source_id, offset=first["next_offset"], limit=1000)
+
+    assert len(first["content"]) == 1000
+    assert second["offset"] == first["next_offset"]
+    assert second["content"]
