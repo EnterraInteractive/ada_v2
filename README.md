@@ -301,12 +301,12 @@ npm run dev
 ---
 
 ### Local model does not start
-**Symptoms**: A.D.A reports that llama-server or the selected GGUF file is missing, or the model fails to load.
+**Symptoms**: A.D.A reports that the embedded inference runtime is unavailable, a GGUF file is missing, or the model fails to load.
 
 **Solution**:
-1. Confirm the llama.cpp build supports K2-Horizon (b11454 or newer).
-2. Verify the executable, model, and optional mmproj paths in Settings.
-3. Check the A.D.A backend console for the in-process runtime error.
+1. Confirm `llama-cpp-python` installed from the CUDA 13.0 wheel index and imports successfully.
+2. Verify the selected K2/Gemma GGUF paths and Gemma mmproj path in Settings.
+3. Check the A.D.A backend console for the native runtime or CUDA loading error.
 4. Lower context size or GPU layers if VRAM is exhausted.
 
 
