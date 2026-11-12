@@ -50,7 +50,6 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  const clearError = () => $('error').style.display='none';
  const color = group => {let h=0;for(const c of String(group||'notes'))h=(h*31+c.charCodeAt(0))|0;return 'hsl('+Math.abs(h)%360+',85%,68%)';};
  let currentSource=null,playbackContext=null;
- let currentSource=null,playbackContext=null;
  async function playWav(encoded){
    if(muted||!encoded)return;
    if(currentSource){try{currentSource.stop();}catch{}currentSource=null;}
@@ -67,6 +66,36 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
      if(current&&candidate.length>limit){chunks.push(current);current=sentence;}else current=candidate;
    }
    if(current)chunks.push(current);return chunks;
+ }
+ async function speakBrowserLocal(text){
+   if(muted||!voiceOn)return true;
+   const synth=window.speechSynthesis;
+   if(!synth)return false;
+   let voices=synth.getVoices();
+   if(!voices.length){
+     await new Promise(resolve=>{
+       synth.addEventListener('voiceschanged',resolve,{once:true});
+       setTimeout(resolve,1200);
+     });
+     voices=synth.getVoices();
+   }
+   const localVoices=voices.filter(voice=>voice.localService===true&&/^en/i.test(voice.lang||''));
+   if(!localVoices.length)return false;
+   const voice=localVoices.find(item=>/^en-GB/i.test(item.lang))||localVoices[0];
+   synth.cancel();browserSpeaking=true;
+   $('brainBadge').textContent='BRAIN '+(lastBrainId||'local')+' · VOICE browser';
+   $('brainBadge').classList.add('visible');if(brainTimer)clearTimeout(brainTimer);brainTimer=setTimeout(()=>$('brainBadge').classList.remove('visible'),5000);
+   status('● SPEAKING · LOCAL BROWSER VOICE');
+   try{
+     for(const chunk of speechChunks(text)){
+       await new Promise(resolve=>{
+         const utterance=new SpeechSynthesisUtterance(chunk);
+         utterance.voice=voice;utterance.lang=voice.lang;utterance.rate=.94;utterance.pitch=.92;
+         utterance.onend=resolve;utterance.onerror=resolve;synth.speak(utterance);
+       });
+     }
+   }finally{browserSpeaking=false;if(handsFree)status('● LISTENING · SAY “JARVIS” TO WAKE');}
+   return true;
  }
  async function fetchSpeech(text,provider=null){
    const response=await fetch('/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(provider?{text,provider}:{text})});
