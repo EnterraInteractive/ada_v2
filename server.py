@@ -42,6 +42,14 @@ class GalaxyHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = unquote(self.path.split("?", 1)[0])
+        if path == "/brain":
+            try:
+                request = Request(BACKEND + "/brain/status", headers={"Accept": "application/json"})
+                with urlopen(request, timeout=5) as response:
+                    self._json(200, json.loads(response.read().decode("utf-8")))
+            except Exception as exc:
+                self._json(503, {"error": f"Could not read local brain status: {exc}"})
+            return
         if path == "/graph":
             try:
                 self._json(200, build_graph())
