@@ -117,7 +117,7 @@ DEFAULT_SETTINGS = {
         "vision_model_id": "gemma-4-12b",
         "models": [
             {"id": "k2-horizon-7b", "name": "K2-Horizon 7B", "model_path": "models/language/k2-horizon-7b/model.gguf", "capabilities": ["chat", "coding", "reasoning", "tools"], "context_size": 65536, "gpu_layers": 99, "max_tokens": 32768, "cache_type_k": "q8_0", "cache_type_v": "q8_0", "no_kv_offload": true, "temperature": 1.0, "top_p": 0.95, "top_k": 64, "chat_template_kwargs": {"reasoning_effort": "high", "tool_call_format": "json"}},
-            {"id": "gemma-4-12b", "name": "Gemma 4 12B Vision", "model_path": "models/vision/gemma-4-12b/model.gguf", "mmproj_path": "models/vision/gemma-4-12b/mmproj.gguf", "chat_handler": "gemma4", "chat_template_kwargs": {"enable_thinking": true}, "capabilities": ["vision"], "context_size": 8192, "gpu_layers": 99, "max_tokens": 2048, "temperature": 1.0, "top_p": 0.95, "top_k": 64}
+            {"id": "gemma-4-12b", "name": "Gemma 4 12B Vision", "model_path": "models/vision/gemma-4-12b/model.gguf", "mmproj_path": "models/vision/gemma-4-12b/mmproj.gguf", "chat_handler": "gemma4", "chat_template_kwargs": {"enable_thinking": true}, "capabilities": ["chat", "vision"], "context_size": 8192, "gpu_layers": 99, "max_tokens": 2048, "temperature": 1.0, "top_p": 0.95, "top_k": 64}
         ]
     },
     "voice": {"provider": "gemini_api", "enabled": True, "api_key_env": "GEMINI_API_KEY", "model": "gemini-3.8-live"}
