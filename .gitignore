@@ -52,3 +52,6 @@ runtime_logs/
 /models/**/*.ckpt
 /models/**/voices/*
 !/models/**/voices/.gitkeep
+
+# Generated local MediaPipe WASM assets copied by scripts/setup_local.ps1
+public/mediapipe/wasm/
