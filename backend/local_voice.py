@@ -75,36 +75,35 @@ class LocalVoiceService:
         if self._whisper is not None and self._piper is not None:
             return
         async with self._load_lock:
-            if self._whisper is not None and self._piper is not None:
-                return
+            if self._whisper is None:
+                whisper_path = self._model_path("whisper_model_path", "models/voice/whisper-large-v3-turbo")
+                if not whisper_path.exists():
+                    raise RuntimeError(f"Local Whisper model is missing: {whisper_path}")
 
-            whisper_path = self._model_path("whisper_model_path", "models/voice/whisper-large-v3-turbo")
-            piper_path = self._model_path("piper_model_path", "models/voice/piper/en_US-lessac-medium.onnx")
-            piper_config = Path(str(piper_path) + ".json")
-            if not whisper_path.exists():
-                raise RuntimeError(f"Local Whisper model is missing: {whisper_path}")
-            if not piper_path.is_file() or not piper_config.is_file():
-                raise RuntimeError(
-                    "Local Piper voice is missing. Expected both "
-                    f"{piper_path} and {piper_config}."
-                )
-
-            def load():
-                from faster_whisper import WhisperModel
-                from piper import PiperVoice
-                device = str(self.config.get("whisper_device", "cuda"))
-                compute_type = str(self.config.get("whisper_compute_type", "float16" if device == "cuda" else "int8"))
-                try:
-                    whisper = WhisperModel(str(whisper_path), device=device, compute_type=compute_type)
-                except Exception:
-                    if device != "cpu":
-                        whisper = WhisperModel(str(whisper_path), device="cpu", compute_type="int8")
-                    else:
+                def load_whisper():
+                    from faster_whisper import WhisperModel
+                    device = str(self.config.get("whisper_device", "cuda"))
+                    compute_type = str(self.config.get("whisper_compute_type", "float16" if device == "cuda" else "int8"))
+                    try:
+                        return WhisperModel(str(whisper_path), device=device, compute_type=compute_type)
+                    except Exception:
+                        if device != "cpu":
+                            return WhisperModel(str(whisper_path), device="cpu", compute_type="int8")
                         raise
-                piper = PiperVoice.load(str(piper_path), config_path=str(piper_config))
-                return whisper, piper
 
-            self._whisper, self._piper = await asyncio.to_thread(load)
+                self._whisper = await asyncio.to_thread(load_whisper)
+
+            if self._piper is None:
+                piper_path = self._model_path("piper_model_path", "models/voice/piper/en_US-lessac-medium.onnx")
+                piper_config = Path(str(piper_path) + ".json")
+                if not piper_path.is_file() or not piper_config.is_file():
+                    raise RuntimeError(f"Local Piper voice is missing: {piper_path} and {piper_config}.")
+
+                def load_piper():
+                    from piper import PiperVoice
+                    return PiperVoice.load(str(piper_path), config_path=str(piper_config))
+
+                self._piper = await asyncio.to_thread(load_piper)
 
     async def _load_piper_only(self) -> None:
         """Load only the local Piper fallback for speech synthesis."""
