@@ -10,6 +10,7 @@ if sys.platform == 'win32':
 import socketio
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import threading
 import sys
@@ -37,6 +38,13 @@ from gemini_voice import GeminiVoiceService
 # Create a Socket.IO server
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "null"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
 app_socketio = socketio.ASGIApp(sio, app)
 
 import signal
