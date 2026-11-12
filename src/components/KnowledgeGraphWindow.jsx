@@ -159,6 +159,7 @@ export default function KnowledgeGraphWindow({ onClose }) {
                 graphApi.d3VelocityDecay(0.28);
                 graphApi.warmupTicks(80);
                 graphApi.cooldownTime(18000);
+                const driftTimer = setInterval(() => graphApi.d3ReheatSimulation(), 12000);
                 graphRef.current = graphApi;
                 graphApi.graphData(data);
                 graphApi.cameraPosition({ x: 0, y: 0, z: 650 }, { x: 0, y: 0, z: 0 }, 0);
@@ -226,8 +227,8 @@ export default function KnowledgeGraphWindow({ onClose }) {
                 } else if (indexes.length) {
                     const source = graph.nodes.find(node => Number(node.id) === indexes[0]);
                     if (source) {
-                        const neighborIds = graph.links.filter(link => Number(link.source) === indexes[0] || Number(link.target) === indexes[0])
-                            .map(link => Number(link.source) === indexes[0] ? Number(link.target) : Number(link.source));
+                        const neighborIds = graph.links.filter(link => Number(link.source?.id ?? link.source) === indexes[0] || Number(link.target?.id ?? link.target) === indexes[0])
+                            .map(link => Number(link.source?.id ?? link.source) === indexes[0] ? Number(link.target?.id ?? link.target) : Number(link.source?.id ?? link.source));
                         setHighlighted([indexes[0], ...neighborIds]);
                         selectNode(source, true);
                     }
