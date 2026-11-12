@@ -120,8 +120,20 @@ class LocalModelRuntime:
         if is_vision_model:
             handler_name = str(model_config.get("chat_handler") or ("gemma4" if model_id == "gemma-4-12b" else "mtmd")).lower()
             try:
-                from llama_cpp.llama_chat_format import Gemma4ChatHandler, MTMDChatHandler
-                handler_class = Gemma4ChatHandler if handler_name == "gemma4" else MTMDChatHandler
+                import llama_cpp.llama_chat_format as chat_formats
+                handler_classes = {
+                    "gemma4": "Gemma4ChatHandler",
+                    "mtmd": "MTMDChatHandler",
+                    "llava15": "Llava15ChatHandler",
+                    "llava16": "Llava16ChatHandler",
+                    "qwen25vl": "Qwen25VLChatHandler",
+                    "minicpmv26": "MiniCPMv26ChatHandler",
+                    "moondream": "MoondreamChatHandler",
+                }
+                class_name = handler_classes.get(handler_name, handler_name)
+                handler_class = getattr(chat_formats, class_name, None)
+                if handler_class is None:
+                    raise ModelRuntimeError(f"Unknown multimodal chat handler: {handler_name}")
                 chat_handler = handler_class(
                     clip_model_path=str(Path(str(mmproj_path)).expanduser()),
                     verbose=False,
