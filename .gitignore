@@ -55,3 +55,8 @@ runtime_logs/
 
 # Generated local MediaPipe WASM assets copied by scripts/setup_local.ps1
 public/mediapipe/wasm/
+
+# Private Knowledge Galaxy credentials (created locally by the backend)
+/config.json
+/notes/captures/*
+!/notes/captures/.gitkeep
