@@ -1,0 +1,9 @@
+{
+  "provider": "gemini_api",
+  "display_name": "Gemini Voice API",
+  "transport": "remote_api",
+  "api_key_env": "GEMINI_API_KEY",
+  "enabled": false,
+  "local_assets_required": false,
+  "notes": "API-backed voice only. No local voice model weights are downloaded or loaded."
+}
