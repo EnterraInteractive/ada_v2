@@ -39,3 +39,15 @@ def test_markdown_graph_uses_array_indexes_and_links_titles_and_wikilinks(tmp_pa
     generated = (viewer / "graph-data.js").read_text(encoding="utf-8")
     assert "const GRAPH =" in generated
     assert "window.__GRAPH__ = GRAPH" in generated
+
+
+def test_galaxy_backend_uses_only_the_local_model_runtime():
+    backend = Path(__file__).resolve().parents[1] / "backend" / "server.py"
+    source = backend.read_text(encoding="utf-8")
+    compile(source, str(backend), "exec")
+
+    assert "await model_runtime.chat(messages=messages, max_tokens=600)" in source
+    assert "GALAXY_SYSTEM_PROMPT" in source
+    assert "api.anthropic.com" not in source
+    assert "ANTHROPIC_API_KEY" not in source
+    assert "_galaxy_chat_sync" not in source
