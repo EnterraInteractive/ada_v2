@@ -222,6 +222,18 @@ A.D.A loads llama.cpp directly into its own Python backend through `llama-cpp-py
 The K2 profile defaults to a 65,536-token context and 32,768-token output, with Q8 KV cache kept in system RAM to protect the 12 GB GPU memory. This trades some speed for context capacity. The context size and GPU-layer settings can be adjusted in the model registry. Change `cache_type_k`, `cache_type_v`, or `no_kv_offload` in `settings.local.json` if you want to tune the KV cache placement. The standard PyPI llama-cpp-python wheel does not include K2-Horizon support; use the project installer above. Run `.venv\Scripts\python.exe scripts\ai\verify_k2_runtime.py --full --tool-test` to test real GPU generation and parsed tool calls.
 
 **K2 tool calling:** upstream llama.cpp b11454 adds K2-Horizon reasoning and tool-call support. A.D.A configures high reasoning effort and JSON tool formatting, and includes a local GPU/function-call verifier. After that passes, the actual Unreal Editor and browser tools still need an end-to-end smoke test in your environment.
+
+### 🪐 Local Knowledge Galaxy
+
+A.D.A indexes Markdown, text, and PDF references from the repository's `docs/` folder and the active workspace. The index uses local SQLite full-text search; PDF text is extracted locally with `pypdf`.
+
+- Open **Knowledge Galaxy** from the bottom tool bar to browse the interactive 3D-style source graph.
+- Search indexed notes and PDFs, select a node, and inspect its excerpt and original path.
+- Ask A.D.A questions about indexed references; relevant answers include stable source IDs such as `[K12]`.
+- Say **"remember that …"** to save a durable Markdown capture. The capture is indexed immediately and can be retrieved in the next turn.
+- Use **Reindex** after adding or changing documents.
+
+The index database is stored at `.ada/knowledge.sqlite3`; captured memories are stored under `.ada/memory/captures/`. Both remain local and are excluded from Git.
 - Model paths, context sizes, GPU layers, and model roles are configurable. Additional GGUF models can be added to the registry.
 - The active model and runtime readiness are shown in the A.D.A status bar.
 - Use a Q4 quantization as a practical starting point on a 12 GB GPU. The default Gemma context is deliberately conservative (8K) and can be adjusted in Settings. Start with Q4_K_M on the 12 GB GPU; use Q4_0 if you need more VRAM headroom. The BF16 vision projector is about 175 MB.
@@ -316,6 +328,7 @@ npm run dev
 ada_v2/
 ├── backend/                    # Python server & AI logic
 │   ├── assistant_engine.py     # Local development assistant and tools
+│   ├── knowledge_base.py       # Local Markdown/PDF index, memory capture, and graph
 │   ├── model_runtime.py        # In-process llama-cpp-python GGUF inference
 │   ├── server.py               # FastAPI + Socket.IO server
 │   ├── web_agent.py            # Playwright browser automation
@@ -323,6 +336,7 @@ ada_v2/
 │   ├── authenticator.py        # MediaPipe face auth logic
 │   ├── project_manager.py      # Project context management
 │   └── reference.jpg           # Your face photo (add this!)
+├── docs/                       # JARVIS reference PDFs and Ada architecture notes
 ├── models/                     # Project-local model registry, GGUF folders, Gemini voice provider metadata
 │   ├── language/k2-horizon-7b/
 │   ├── vision/gemma-4-12b/
