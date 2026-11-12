@@ -29,7 +29,6 @@ from model_runtime import LocalModelRuntime
 from assistant_engine import AssistantEngine
 from project_manager import ProjectManager
 from web_agent import WebAgent
-from voice_service import LocalVoiceService
 from unreal_mcp import UnrealMCPClient
 
 # Create a Socket.IO server
@@ -42,9 +41,6 @@ import signal
 # --- SHUTDOWN HANDLER ---
 def signal_handler(sig, frame):
     print(f"\n[SERVER] Caught signal {sig}. Exiting gracefully...")
-    # Stop the local voice capture thread before the backend exits.
-    if voice_service:
-        voice_service.stop_event.set()
     # Stop the managed local inference child process before the backend exits.
     if model_runtime.process and model_runtime.process.poll() is None:
         try:
@@ -59,7 +55,6 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 # Global state
-voice_service = None
 authenticator = None
 SETTINGS_DIR = Path(__file__).resolve().parent
 SETTINGS_FILE = str(SETTINGS_DIR / "settings.local.json")
@@ -299,92 +294,34 @@ async def disconnect(sid):
 
 @sio.event
 async def start_audio(sid, data=None):
-    global voice_service
-
     if SETTINGS.get("face_auth_enabled", False) and authenticator and not authenticator.authenticated:
         await sio.emit("error", {"msg": "Authentication Required"}, room=sid)
         return
 
     voice_config = SETTINGS.get("voice", {})
-    if voice_config.get("provider", "gemini_api") == "gemini_api":
-        if not voice_config.get("enabled", False):
-            await sio.emit("error", {"msg": "Gemini API voice is selected but disabled. Configure the Gemini API key and enable voice after the API adapter is installed."}, room=sid)
-            return
-        await sio.emit("error", {"msg": "Gemini API voice is selected. The remote voice transport still needs to be connected; local voice fallback is intentionally disabled."}, room=sid)
+    if voice_config.get("provider") != "gemini_api":
+        await sio.emit("error", {"msg": "Only the Gemini API voice provider is supported in this A.D.A configuration."}, room=sid)
+        return
+    if not voice_config.get("enabled", False):
+        await sio.emit("error", {"msg": "Gemini API voice is disabled. Configure GEMINI_API_KEY and enable voice when the API adapter is connected."}, room=sid)
         return
 
-    if voice_service and voice_service.started:
-        await sio.emit("status", {"msg": "Local voice is already running."}, room=sid)
-        return
-
-    device_name = (data or {}).get("device_name")
-    await sio.emit("status", {"msg": "Loading local speech recognition model..."}, room=sid)
-
-    async def on_speech(recognized_text):
-        await sio.emit("transcription", {"sender": "You", "text": recognized_text}, room=sid)
-        if not assistant_engine:
-            await sio.emit("error", {"msg": "Local assistant engine is not initialized."}, room=sid)
-            return
-        await sio.emit("assistant_status", {"state": "thinking"}, room=sid)
-        try:
-            answer = await assistant_engine.respond(recognized_text, session_id=sid)
-            await sio.emit("transcription", {"sender": "ADA", "text": answer}, room=sid)
-            if voice_service:
-                voice_service.speak(answer)
-            await sio.emit("assistant_status", {"state": "idle"}, room=sid)
-        except Exception as exc:
-            await sio.emit("error", {"msg": f"Voice request failed: {exc}"}, room=sid)
-            await sio.emit("assistant_status", {"state": "error"}, room=sid)
-
-    async def on_voice_status(payload):
-        await sio.emit("status", payload, room=sid)
-
-    async def on_voice_error(payload):
-        global voice_service
-        await sio.emit("error", payload, room=sid)
-        if str((payload or {}).get("msg", "")).startswith("Microphone error") and voice_service:
-            failed_service = voice_service
-            await failed_service.stop()
-            voice_service = None
-
-    try:
-        voice_service = LocalVoiceService(
-            on_speech=on_speech,
-            on_status=on_voice_status,
-            on_error=on_voice_error,
-            device_name=device_name,
-            model_size=voice_config.get("model_size", "base.en"),
-            vad_aggressiveness=voice_config.get("vad_aggressiveness", 2),
-        )
-        await voice_service.start()
-        await sio.emit("status", {"msg": "A.D.A Started"})
-    except Exception as exc:
-        print(f"[VOICE] Failed to start local voice: {type(exc).__name__}: {exc}")
-        voice_service = None
-        await sio.emit("error", {"msg": f"Local voice could not start: {exc}"}, room=sid)
+    await sio.emit("error", {"msg": "Gemini API voice transport is not connected yet. Local voice fallback is disabled."}, room=sid)
 
 
 @sio.event
 async def stop_audio(sid):
-    global voice_service
-    if voice_service:
-        await voice_service.stop()
-        voice_service = None
-    await sio.emit("status", {"msg": "A.D.A Stopped"}, room=sid)
+    await sio.emit("status", {"msg": "No active voice session."}, room=sid)
 
 
 @sio.event
 async def pause_audio(sid):
-    if voice_service and voice_service.started:
-        voice_service.pause()
-        await sio.emit("status", {"msg": "Audio Paused"}, room=sid)
+    await sio.emit("status", {"msg": "No active Gemini API voice session."}, room=sid)
 
 
 @sio.event
 async def resume_audio(sid):
-    if voice_service and voice_service.started:
-        voice_service.resume()
-        await sio.emit("status", {"msg": "Audio Resumed"}, room=sid)
+    await sio.emit("status", {"msg": "No active Gemini API voice session."}, room=sid)
 
 
 @sio.event
@@ -410,11 +347,6 @@ async def shutdown(sid, data=None):
     print("[SERVER] SHUTDOWN SIGNAL RECEIVED FROM FRONTEND")
     print("[SERVER] ========================================")
     
-    # Stop local microphone capture and speech output.
-    if voice_service:
-        await voice_service.stop()
-        voice_service = None
-
     # Close browser resources and stop the managed local inference process.
     if browser_agent:
         await browser_agent.close()
