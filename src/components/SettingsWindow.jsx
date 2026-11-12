@@ -363,6 +363,24 @@ const SettingsWindow = ({
                                         className="w-full bg-gray-900 border border-gray-700 rounded p-1 text-[10px] text-cyan-100" />
                                 </label>
                             </div>
+                            <div className="grid grid-cols-2 gap-2 mt-2">
+                                <label className="text-[9px] text-gray-500">KV cache K
+                                    <select value={model.cache_type_k || 'f16'} onChange={e => updateModel(model.id, { cache_type_k: e.target.value })}
+                                        className="w-full bg-gray-900 border border-gray-700 rounded p-1 text-[10px] text-cyan-100">
+                                        <option value="f16">F16</option><option value="q8_0">Q8_0</option><option value="q4_0">Q4_0</option>
+                                    </select>
+                                </label>
+                                <label className="text-[9px] text-gray-500">KV cache V
+                                    <select value={model.cache_type_v || 'f16'} onChange={e => updateModel(model.id, { cache_type_v: e.target.value })}
+                                        className="w-full bg-gray-900 border border-gray-700 rounded p-1 text-[10px] text-cyan-100">
+                                        <option value="f16">F16</option><option value="q8_0">Q8_0</option><option value="q4_0">Q4_0</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <label className="flex items-center gap-2 text-[9px] text-gray-500 mt-2">
+                                <input type="checkbox" checked={!!model.no_kv_offload} onChange={e => updateModel(model.id, { no_kv_offload: e.target.checked })} />
+                                Keep KV cache in system RAM (less VRAM, potentially slower)
+                            </label>
                             <p className="text-[9px] text-gray-600 mt-2">ID: {model.id} · {Array.isArray(model.capabilities) ? model.capabilities.join(', ') : 'custom'}</p>
                         </div>
                     ))}
