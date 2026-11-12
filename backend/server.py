@@ -304,7 +304,48 @@ unreal_mcp_client = None
 latest_uploaded_image = None
 latest_camera_image = None
 latest_image_name = None
+def voice_status():
+    if SETTINGS.get("voice_studio", {}).get("enabled", True):
+        return {"provider": "voicestudio", "profile": ACTIVE_VOICE, "fallback": "piper"}
+    return {"provider": "piper", "profile": "en_US-lessac-medium", "fallback": None}
+
+
+async def intercept_voice_command(prompt: str):
+    global ACTIVE_VOICE
+    value = (prompt or "").strip()
+    folded = value.casefold()
+    if re.search(r"\\b(which|what) voice (are you using|is active)\\b", folded):
+        state = voice_status()
+        return f"Using the {state['provider']} voice, {state['profile']}, sir."
+    if re.search(r"\\b(use|switch to) (your )?(local|cloned) voice\\b", folded):
+        SETTINGS.setdefault("voice_studio", {})["enabled"] = True
+        local_voice_service.tts_callback = voice_studio_service.synthesize_pcm16
+        return f"Certainly, sir. The cloned {ACTIVE_VOICE} voice is selected."
+    if re.search(r"\\b(use|switch to) (the )?(piper|fallback) voice\\b", folded):
+        SETTINGS.setdefault("voice_studio", {})["enabled"] = False
+        local_voice_service.tts_callback = None
+        return "The local Piper voice is now selected, sir."
+    if re.search(r"\\b(use|switch to) (the )?browser voice\\b", folded):
+        return "Browser speech is disabled in this offline build, sir; I shall use the local voice engines."
+    match = re.search(r"\\bswitch to voice (.+)$", value, re.IGNORECASE)
+    if match:
+        profile = match.group(1).strip().strip('". ')
+        try:
+            voice_studio_service.set_profile(profile)
+            SETTINGS.setdefault("voice_studio", {})["profile"] = profile
+            ACTIVE_VOICE = profile
+            SETTINGS["voice_studio"]["enabled"] = True
+            local_voice_service.tts_callback = voice_studio_service.synthesize_pcm16
+            return f"The {profile} voice is selected, sir."
+        except Exception as exc:
+            return f"I could not select that voice profile: {exc}"
+    return None
+
+
 async def handle_voice_local_query(sid: str, prompt: str) -> str:
+    voice_command = await intercept_voice_command(prompt)
+    if voice_command:
+        return voice_command
     brain_command = await intercept_brain_command(prompt)
     if brain_command:
         return brain_command
@@ -319,6 +360,7 @@ gemini_voice_service = GeminiVoiceService(
     local_query=handle_voice_local_query,
 )
 voice_studio_service = VoiceStudioClient(PROJECT_ROOT, SETTINGS.get("voice_studio", {}))
+ACTIVE_VOICE = str(SETTINGS.get("voice_studio", {}).get("profile", "Jarvis"))
 local_voice_service = LocalVoiceService(
     _voice_emit,
     local_query=handle_voice_local_query,
@@ -472,6 +514,9 @@ async def _galaxy_chat(question, session_id):
             if re.search(pattern, question, re.IGNORECASE):
                 return {"answer": reply, "nodes": [], "note_count": len(nodes), "used_notes": []}
 
+    voice_command = await intercept_voice_command(question)
+    if voice_command:
+        return {"answer": voice_command, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status()}
     brain_command = await intercept_brain_command(question)
     if brain_command:
         return {"answer": brain_command, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status()}
@@ -881,7 +926,9 @@ async def user_input(sid, data):
 
     await sio.emit("assistant_status", {"state": "thinking"}, room=sid)
     try:
-        answer = await intercept_brain_command(text)
+        answer = await intercept_voice_command(text)
+        if answer is None:
+            answer = await intercept_brain_command(text)
         if answer is None:
             answer = await assistant_engine.respond(text, session_id=sid)
         await sio.emit("model_status", model_runtime.status(), room=sid)
