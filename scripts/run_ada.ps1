@@ -7,14 +7,10 @@ $Python = Join-Path (Join-Path (Join-Path $ProjectRoot ".venv") "Scripts") "pyth
 if (-not (Test-Path $Python)) {
     throw "Ada's project-local Python is missing. Run scripts/setup_local.ps1 first."
 }
-if (Test-Path $NpmCommand) {
-    $env:PATH = "$NodeRoot;$env:PATH"
-} elseif (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+if (-not (Test-Path $NpmCommand)) {
     throw "Ada's portable Node runtime is missing. Run scripts/setup_local.ps1 first."
-} else {
-    $NpmCommand = (Get-Command npm -ErrorAction Stop).Source
-    Write-Warning "Using PATH npm because the portable Node runtime was not found."
 }
+$env:PATH = "$NodeRoot;$env:PATH"
 
 $env:ADA_PROJECT_ROOT = $ProjectRoot
 $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path (Join-Path $ProjectRoot ".ada") "browsers"
