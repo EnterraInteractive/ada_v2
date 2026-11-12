@@ -74,6 +74,10 @@ if ($LASTEXITCODE -ne 0) { throw "Could not upgrade pip in .venv." }
 & $Python -m pip install -r (Join-Path $ProjectRoot "requirements.txt")
 if ($LASTEXITCODE -ne 0) { throw "Python dependency installation failed." }
 
+Write-Host "Downloading project-local Whisper wake/command models and Piper voice..." -ForegroundColor Yellow
+& $Python (Join-Path $ProjectRoot "scripts/ai/download_local_voice_models.py")
+if ($LASTEXITCODE -ne 0) { throw "Local speech model installation failed." }
+
 if (-not $SkipPlaywright) {
     Write-Host "Installing Chromium into .ada/browsers..." -ForegroundColor Yellow
     & $Python -m playwright install chromium
@@ -133,6 +137,5 @@ Write-Host "PASS: Python runtime, Python packages, Node.js, npm packages, caches
 Write-Host "Next: powershell -ExecutionPolicy Bypass -File scripts/ai/install_k2_runtime.ps1"
 Write-Host "Then: .venv/Scripts/python.exe scripts/ai/download_k2_model.py"
 Write-Host "Then: .venv/Scripts/python.exe scripts/ai/verify_k2_runtime.py --full --tool-test"
-Write-Host "Then: .venv/Scripts/python.exe scripts/ai/download_local_voice_models.py"
 Write-Host "Then: powershell -ExecutionPolicy Bypass -File scripts/run_voicestudio.ps1 (install the local runtime, select VoxCPM2, and create the Jarvis voice profile)"
 Write-Host "Note: NVIDIA driver, CUDA Toolkit 13.x, Git, CMake, and uv remain machine-level prerequisites."
