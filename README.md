@@ -205,7 +205,7 @@ A.D.A is an MCP **client**. It connects to the Unreal MCP server already running
 1. Start the Unreal Editor with the existing Unreal MCP plugin/server enabled.
 2. Confirm its Streamable HTTP endpoint is `http://127.0.0.1:8000/mcp`.
 3. Open A.D.A **Settings → Unreal Editor Connection** and keep that endpoint enabled.
-4. Save the setup. A.D.A discovers the editor tools and exposes them to K2 as `unreal_*` tools. Editor actions require confirmation by default.
+4. Save the setup. A.D.A discovers the editor tools and exposes them to K2 as `unreal_*` tools. MCP-annotated read-only queries can run automatically; editor changes and actions require confirmation by default.
 5. If the editor starts after A.D.A, press **Reconnect** in Settings.
 
 A.D.A's own backend listens on `127.0.0.1:8001`; port 8000 remains available for the Unreal MCP server. Screenshots returned by Unreal MCP can be passed to Gemma through `analyze_image`.
