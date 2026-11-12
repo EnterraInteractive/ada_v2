@@ -238,6 +238,57 @@ galaxy_knowledge_base = KnowledgeBase(
     source_roots=lambda: [NOTES_DIR],
 )
 model_runtime = LocalModelRuntime(SETTINGS)
+
+# Runtime-only brain shelf. The boot brain remains the configured primary model.
+BRAIN_PROFILES = SETTINGS.get("brain_profiles") or {
+    "local": SETTINGS.get("model_runtime", {}).get("primary_model_id", "k2-horizon-7b"),
+    "big": SETTINGS.get("model_runtime", {}).get("vision_model_id", "gemma-4-12b"),
+}
+ACTIVE_BRAIN = str(SETTINGS.get("brain_profiles", {}).get("boot_brain", "local"))
+
+
+def brain_status():
+    model_id = model_runtime.config.get("primary_model_id")
+    model = model_runtime.registry().get(model_id, {})
+    return {
+        "name": ACTIVE_BRAIN,
+        "model_id": model_id,
+        "model_name": model.get("name", model_id or "unconfigured"),
+        "machine": "this machine",
+    }
+
+
+async def switch_brain(name: str):
+    global ACTIVE_BRAIN
+    name = (name or "").strip().casefold()
+    model_id = BRAIN_PROFILES.get(name)
+    if not model_id:
+        return {"ok": False, "error": f"The {name} brain is not configured."}
+    model = model_runtime.registry().get(model_id)
+    if not model:
+        return {"ok": False, "error": f"Model '{model_id}' is not registered locally."}
+    model_path = model_runtime._resolve_path(model.get("model_path"))
+    if model_path is None or not model_path.is_file():
+        return {"ok": False, "error": f"The {model.get('name', model_id)} model file is not installed locally."}
+    await model_runtime.update_config({"primary_model_id": model_id})
+    ACTIVE_BRAIN = name
+    return {"ok": True, **brain_status()}
+
+
+async def intercept_brain_command(prompt: str):
+    value = (prompt or "").strip().casefold()
+    if re.search(r"\b(which|what) brain (are you on|is active|is running)\b", value):
+        state = brain_status()
+        return f"Currently running the {state['name']} brain, {state['model_name']}, on this machine."
+    if re.search(r"\b(switch to|use) (your )?local brain\b", value):
+        state = await switch_brain("local")
+        return f"Back to the local brain, sir: {state['model_name']}." if state["ok"] else state["error"]
+    if re.search(r"\b(switch to|use) (your )?big brain\b", value):
+        state = await switch_brain("big")
+        return f"The big brain is now engaged, sir: {state['model_name']}." if state["ok"] else state["error"]
+    if re.search(r"\b(switch to )?claude\b", value):
+        return "The cloud brain is not enabled in this offline build, sir. I shall remain entirely local."
+    return None
 assistant_engine = None
 browser_agent = None
 unreal_mcp_client = None
@@ -245,6 +296,9 @@ latest_uploaded_image = None
 latest_camera_image = None
 latest_image_name = None
 async def handle_voice_local_query(sid: str, prompt: str) -> str:
+    brain_command = await intercept_brain_command(prompt)
+    if brain_command:
+        return brain_command
     if not assistant_engine:
         raise RuntimeError("A.D.A's local K2 assistant is not initialized.")
     return await assistant_engine.respond(prompt, session_id=sid)
@@ -459,6 +513,9 @@ async def _galaxy_chat(question, session_id):
     })
 
     # Inference stays inside A.D.A's existing local llama.cpp runtime.
+    brain_command = await intercept_brain_command(question)
+    if brain_command:
+        return {"answer": brain_command, "nodes": [], "note_count": len(nodes), "used_notes": [], "brain": brain_status()}
     result = await model_runtime.chat(messages=messages, max_tokens=600)
     choice = (result.get("choices") or [{}])[0]
     answer = str((choice.get("message") or {}).get("content") or "").strip()
@@ -478,6 +535,7 @@ async def _galaxy_chat(question, session_id):
             {"id": node["id"], "source_id": node["source_id"], "label": node["label"], "path": node["path"]}
             for node in used
         ],
+        "brain": brain_status(),
     }
 
 
@@ -590,6 +648,17 @@ async def knowledge_source(source_id: int, offset: int = 0, limit: int = 18000):
 @app.post("/knowledge/reindex")
 async def knowledge_reindex():
     return await asyncio.to_thread(knowledge_base.reindex)
+
+
+@app.get("/brain/status")
+async def get_brain_status():
+    return brain_status()
+
+
+@app.post("/brain/switch")
+async def post_brain_switch(payload: dict):
+    result = await switch_brain(str((payload or {}).get("brain") or ""))
+    return result
 
 
 @app.get("/status")
@@ -765,7 +834,10 @@ async def user_input(sid, data):
 
     await sio.emit("assistant_status", {"state": "thinking"}, room=sid)
     try:
-        answer = await assistant_engine.respond(text, session_id=sid)
+        answer = await intercept_brain_command(text)
+        if answer is None:
+            answer = await assistant_engine.respond(text, session_id=sid)
+        await sio.emit("model_status", model_runtime.status(), room=sid)
         await sio.emit("transcription", {"sender": "ADA", "text": answer}, room=sid)
         await sio.emit("assistant_status", {"state": "idle"}, room=sid)
     except Exception as exc:
