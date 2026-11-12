@@ -18,6 +18,8 @@ import os
 import json
 import re
 import base64
+import io
+import wave
 import urllib.request
 import urllib.error
 import uuid
@@ -688,8 +690,14 @@ async def knowledge_galaxy_speak(payload: dict, response: Response):
         if audio is None:
             await local_voice_service._load_piper_only()
             audio = await asyncio.to_thread(local_voice_service._synthesize, text)
+        wav_buffer = io.BytesIO()
+        with wave.open(wav_buffer, "wb") as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(24000)
+            wav_file.writeframes(audio)
         response.headers["X-Jarvis-Voice"] = provider
-        return {"ok": True, "provider": provider, "audio_pcm16": base64.b64encode(audio).decode("ascii"), "sample_rate": 24000}
+        return Response(content=wav_buffer.getvalue(), media_type="audio/wav", headers={"X-Jarvis-Voice": provider})
     except Exception as exc:
         return {"error": f"{type(exc).__name__}: {exc}"}
 
@@ -698,13 +706,17 @@ async def knowledge_galaxy_speak(payload: dict, response: Response):
 async def knowledge_galaxy_hear(payload: dict):
     """Transcribe a locally captured 16 kHz mono PCM utterance with Whisper."""
     data = payload or {}
-    encoded = str(data.get("audio_pcm16") or "")
+    encoded = str(data.get("audio_wav") or "")
     if not encoded or len(encoded) > 14_000_000:
-        return {"error": "Audio payload is empty or exceeds the 10 MB limit."}
+        return {"error": "WAV payload is empty or exceeds the 10 MB limit."}
     try:
-        audio = base64.b64decode(encoded, validate=True)
+        wav_bytes = base64.b64decode(encoded, validate=True)
+        with wave.open(io.BytesIO(wav_bytes), "rb") as wav_file:
+            if wav_file.getnchannels() != 1 or wav_file.getsampwidth() != 2 or wav_file.getframerate() != 16000:
+                raise ValueError("WAV must be mono, 16-bit PCM at 16 kHz.")
+            audio = wav_file.readframes(wav_file.getnframes())
         if not audio or len(audio) % 2:
-            raise ValueError("Audio must be signed 16-bit mono PCM.")
+            raise ValueError("WAV contains no valid signed 16-bit PCM frames.")
         mode = "wake" if str(data.get("mode") or "command").casefold() == "wake" else "command"
         if mode == "wake":
             await local_voice_service._load_wake_whisper()
