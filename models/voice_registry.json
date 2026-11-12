@@ -1,16 +1,25 @@
 {
   "version": 1,
-  "active_provider": "gemini_api",
+  "active_provider": "voicestudio",
   "providers": [
     {
-      "id": "gemini_api",
-      "name": "Gemini Voice API",
-      "transport": "remote_api",
-      "local_model_required": false,
-      "api_key_env": "GEMINI_API_KEY",
-      "config_path": "models/voice/gemini/provider.json",
-      "enabled": true,
-      "model": "gemini-3.8-live"
+      "id": "voicestudio",
+      "name": "VoiceStudio cloned voice",
+      "transport": "local_http",
+      "local_model_required": true,
+      "base_url": "http://127.0.0.1:3900",
+      "engine": "voxcpm2",
+      "model_id": "voxcpm2",
+      "profile": "Jarvis",
+      "enabled": true
+    },
+    {
+      "id": "piper",
+      "name": "Piper local fallback",
+      "transport": "in_process",
+      "local_model_required": true,
+      "model_path": "models/voice/piper/en_US-lessac-medium.onnx",
+      "enabled": true
     }
   ]
 }
