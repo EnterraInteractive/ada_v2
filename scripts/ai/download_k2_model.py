@@ -23,9 +23,13 @@ def main() -> int:
     # Keep Hugging Face metadata and temporary downloads inside the Ada project.
     HF_CACHE.mkdir(parents=True, exist_ok=True)
     (CACHE_ROOT / "tmp").mkdir(parents=True, exist_ok=True)
+    (CACHE_ROOT / "pip").mkdir(parents=True, exist_ok=True)
+    (CACHE_ROOT / "xdg").mkdir(parents=True, exist_ok=True)
     import os
     os.environ["HF_HOME"] = str(HF_CACHE)
     os.environ["HUGGINGFACE_HUB_CACHE"] = str(HF_CACHE / "hub")
+    os.environ["PIP_CACHE_DIR"] = str(CACHE_ROOT / "pip")
+    os.environ["XDG_CACHE_HOME"] = str(CACHE_ROOT / "xdg")
     os.environ["TEMP"] = str(CACHE_ROOT / "tmp")
     os.environ["TMP"] = str(CACHE_ROOT / "tmp")
 
