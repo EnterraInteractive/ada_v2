@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A.D.A — Knowledge Galaxy</title>
+<style>
+:root{color-scheme:dark;--cyan:#7deaff;--muted:#56899b;--line:rgba(125,234,255,.18)}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#02040b;color:#e8fbff;font:14px/1.5 "Segoe UI",system-ui,sans-serif}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;background-image:radial-gradient(1px 1px at 8% 12%,#e9fbff 98%,transparent),radial-gradient(1px 1px at 27% 71%,#9bdcff 98%,transparent),radial-gradient(2px 2px at 76% 23%,#fff 98%,transparent),radial-gradient(1px 1px at 92% 81%,#d8f5ff 98%,transparent),radial-gradient(1px 1px at 54% 42%,#fff 98%,transparent),radial-gradient(1px 1px at 42% 18%,#b4e5ff 98%,transparent);background-size:420px 310px;opacity:.65}
+header{position:absolute;z-index:4;top:0;left:0;right:0;height:66px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(1,5,13,.9),rgba(1,5,13,.42));backdrop-filter:blur(14px)}
+.brand{font-size:12px;letter-spacing:.32em;color:#d8faff;font-weight:650}.sub{font-size:10px;letter-spacing:.16em;color:var(--muted);margin-top:3px}
+.actions{display:flex;gap:8px}button{font:inherit;color:var(--cyan);border:1px solid var(--line);background:rgba(5,24,38,.8);border-radius:10px;padding:8px 12px;cursor:pointer}button:hover{border-color:rgba(125,234,255,.65);background:rgba(11,55,75,.75)}button:disabled{opacity:.4;cursor:default}
+#galaxy{position:absolute;inset:66px 320px 114px 0;z-index:1}
+aside{position:absolute;z-index:3;right:0;top:66px;bottom:114px;width:320px;padding:24px 20px;border-left:1px solid var(--line);background:rgba(2,8,18,.78);backdrop-filter:blur(16px);overflow:auto}
+.kicker{font-size:10px;letter-spacing:.24em;color:#4d8b9e;margin-bottom:14px}.group{font-size:10px;color:#4d8b9e;margin-bottom:8px}.title{font-size:18px;font-weight:550;color:#dffaff;margin:0 0 18px}.excerpt{white-space:pre-wrap;overflow-wrap:anywhere;color:rgba(220,249,255,.72);font-size:12px;line-height:1.9}.path{border-top:1px solid var(--line);margin-top:18px;padding-top:12px;color:#477184;font-size:10px;overflow-wrap:anywhere}
+footer{position:absolute;z-index:5;bottom:0;left:0;right:0;min-height:114px;padding:12px 24px 10px;border-top:1px solid var(--line);background:linear-gradient(0deg,rgba(1,5,13,.98),rgba(1,5,13,.82));backdrop-filter:blur(18px)}
+#answer{max-width:1000px;margin:0 auto 9px;padding:0 6px;color:#effcff;font-size:13px;line-height:1.55;min-height:0}#answer:empty{display:none}
+form{max-width:1000px;margin:auto;display:flex;gap:10px;align-items:center;border:1px solid rgba(125,234,255,.28);border-radius:15px;padding:7px 9px;background:#071421;box-shadow:0 0 35px rgba(8,145,178,.07)}
+input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff;padding:8px;font:14px "Segoe UI",sans-serif}input::placeholder{color:#426e7d}
+#mic{font-size:17px;padding:8px 12px}#status{max-width:1000px;margin:5px auto 0;color:#477c8d;font-size:9px;letter-spacing:.17em}
+#error{position:absolute;z-index:7;left:24px;bottom:132px;color:#ff9caa;background:rgba(50,5,15,.8);border:1px solid rgba(255,100,130,.3);border-radius:8px;padding:8px 12px;display:none}
+@media(max-width:760px){#galaxy{right:0;bottom:180px}aside{display:none}footer{min-height:180px}header{padding:0 12px}.brand{font-size:10px}}
+</style>
+<script src="/graph-data.js"></script>
+<script src="https://unpkg.com/3d-force-graph@1.73.3/dist/3d-force-graph.min.js"></script>
+</head>
+<body>
+<header>
+ <div><div class="brand">A.D.A · KNOWLEDGE GALAXY</div><div class="sub" id="count">INDEXING YOUR NOTES</div></div>
+ <div class="actions"><button id="voiceToggle" title="Toggle spoken answers">VOICE ON</button><button id="reindex">REINDEX</button></div>
+</header>
+<div id="galaxy"></div>
+<aside><div class="kicker">SOURCE NOTE</div><div id="source"><div class="group">Select a node</div><p class="excerpt">Ask a question about your notes, or select a glowing node to inspect its source.</p></div></aside>
+<div id="error"></div>
+<footer>
+ <div id="answer"></div>
+ <form id="ask"><button type="button" id="mic">🎙</button><input id="question" autocomplete="off" placeholder="Ask your notes… or say “remember that…”"><button type="submit" id="send">SEND</button></form>
+ <div id="status">BROWSER VOICE · BRITISH ENGLISH PREFERRED · CONNECTING</div>
+</footer>
+<script>
+(() => {
+ const $ = id => document.getElementById(id);
+ const sessionId = sessionStorage.getItem('ada-galaxy-session') || (crypto.randomUUID ? crypto.randomUUID() : 'galaxy-'+Date.now());
+ sessionStorage.setItem('ada-galaxy-session',sessionId);
+ let graph, data={nodes:[],links:[]}, selected=null, voiceOn=true, interacted=false, pendingSpeech='', recognition=null, busy=false;
+ const status = text => $('status').textContent = text;
+ const error = text => { $('error').textContent=text; $('error').style.display='block'; };
+ const clearError = () => $('error').style.display='none';
+ const color = group => {let h=0;for(const c of String(group||'notes'))h=(h*31+c.charCodeAt(0))|0;return 'hsl('+Math.abs(h)%360+',85%,68%)';};
+ function speak(text){
+   if(!voiceOn||!text||!window.speechSynthesis)return;
+   if(!interacted){pendingSpeech=text;return;}
+   speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);const voices=speechSynthesis.getVoices();
+   const british=voices.find(v=>/^en-GB/i.test(v.lang))||voices.find(v=>/British|United Kingdom/i.test(v.name));if(british)u.voice=british;u.rate=.94;u.pitch=.92;speechSynthesis.speak(u);
+ }
+ function interaction(){interacted=true;if(pendingSpeech){const p=pendingSpeech;pendingSpeech='';speak(p);}}
+ function showNode(node,fly=true){
+   if(!node)return;selected=node;
+   $('source').innerHTML='';
+   const group=document.createElement('div');group.className='group';group.textContent=(node.group||'notes')+' · node '+node.id;
+   const title=document.createElement('h2');title.className='title';title.textContent=node.label||'Untitled';
+   const excerpt=document.createElement('div');excerpt.className='excerpt';excerpt.textContent=node.excerpt||'No excerpt available.';
+   const path=document.createElement('div');path.className='path';path.textContent=node.path||'';
+   $('source').append(group,title,excerpt,path);
+   if(fly&&graph){const len=Math.hypot(node.x||1,node.y||1,node.z||1)||1;const r=1+180/len;graph.cameraPosition({x:(node.x||0)*r,y:(node.y||0)*r,z:(node.z||0)*r},{x:node.x||0,y:node.y||0,z:node.z||0},1300);}
+ }
+ function highlight(ids){
+   const set=new Set(ids.map(Number));
+   graph.nodeColor(n=>n.__pulseUntil>Date.now()?'#fff':set.has(Number(n.id))?'#fff0a8':color(n.group));
+   graph.nodeVal(n=>n.__pulseUntil>Date.now()?13:set.has(Number(n.id))?7:3.5);
+   graph.linkColor(l=>set.has(Number(l.source?.id??l.source))&&set.has(Number(l.target?.id??l.target))?'rgba(255,230,150,.8)':'rgba(90,180,220,.18)');
+   graph.refresh();
+ }
+ async function refreshGraph(anchorIndex=null,newIndex=null){
+   const response=await fetch('/graph?ts='+Date.now());if(!response.ok)throw new Error('Could not refresh graph data.');
+   const next=await response.json();
+   if(newIndex!==null&&anchorIndex!==null){const anchor=next.nodes.find(n=>n.id===anchorIndex);const born=next.nodes.find(n=>n.id===newIndex);if(anchor&&born){born.x=anchor.x||0;born.y=anchor.y||0;born.z=anchor.z||0;}}
+   data=next;graph.graphData(data);$('count').textContent=data.nodes.length+' NOTES INDEXED · '+data.links.length+' CONNECTIONS';
+   if(newIndex!==null){const node=data.nodes.find(n=>n.id===newIndex);if(node){node.__pulseUntil=Date.now()+2300;showNode(node,true);highlight([newIndex]);const timer=setInterval(()=>{graph.refresh();if(Date.now()>node.__pulseUntil)clearInterval(timer);},80);}}
+ }
+ async function ask(text){
+   text=(text||$('question').value).trim();if(!text||busy)return;interaction();clearError();busy=true;$('send').disabled=true;status('● THINKING…');$('question').value='';
+   try{
+    if(/^remember that\b/i.test(text)){
+      const r=await fetch('/remember',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const result=await r.json();if(result.error)throw new Error(result.error);
+      await refreshGraph(result.anchor_node_index??null,result.node_index??null);
+      const reply='Consider it filed, sir. My memory has grown another neuron; try not to make a habit of being interesting.';
+      $('answer').textContent=reply;speak(reply);
+    }else{
+      const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:text,session_id:sessionId})});const result=await r.json();if(result.error)throw new Error(result.error);
+      $('answer').textContent=result.answer||'';speak(result.answer||'');
+      const ids=(result.nodes||[]).map(Number);
+      if(ids.length>=4){highlight(ids);const top=data.nodes.find(n=>n.id===ids[0]);if(top)showNode(top,false);}
+      else if(ids.length){const top=ids[0];const neighbors=data.links.filter(l=>Number(l.source?.id??l.source)===top||Number(l.target?.id??l.target)===top).map(l=>Number(l.source?.id??l.source)===top?(l.target?.id??l.target):(l.source?.id??l.source));highlight([top,...neighbors]);const node=data.nodes.find(n=>n.id===top);if(node)showNode(node,true);}
+      else highlight([]);
+    }
+   }catch(e){error(e.message||'Request failed.');status('● ERROR');}
+   finally{busy=false;$('send').disabled=false;if(!status().includes('ERROR'))status('READY · NOTES GROUNDED · LOCAL VIEWER');}
+ }
+ function startMic(){
+   interaction();const Recognition=window.webkitSpeechRecognition||window.SpeechRecognition;if(!Recognition){error('Speech recognition is available in Chrome.');return;}
+   recognition=new Recognition();recognition.lang='en-GB';recognition.interimResults=false;recognition.maxAlternatives=1;
+   recognition.onstart=()=>status('● LISTENING…');recognition.onresult=e=>{const transcript=e.results?.[0]?.[0]?.transcript||'';$('question').value=transcript;ask(transcript);};
+   recognition.onerror=e=>error('Microphone: '+e.error);recognition.onend=()=>{if(!busy)status('READY · NOTES GROUNDED · LOCAL VIEWER');};recognition.start();
+ }
+ $('ask').addEventListener('submit',e=>{e.preventDefault();ask();});
+ $('mic').addEventListener('click',startMic);
+ $('voiceToggle').addEventListener('click',()=>{interaction();voiceOn=!voiceOn;$('voiceToggle').textContent=voiceOn?'VOICE ON':'VOICE OFF';if(!voiceOn)speechSynthesis.cancel();});
+ $('reindex').addEventListener('click',async()=>{interaction();status('● THINKING…');try{await refreshGraph();}catch(e){error(e.message);}finally{status('READY · NOTES GROUNDED · LOCAL VIEWER');}});
+ document.addEventListener('pointerdown',interaction,{once:true});
+ async function boot(){
+   if(!window.ForceGraph3D){error('3D graph library did not load. Check your internet connection and refresh.');return;}
+   try{
+    data=window.__GRAPH__||{nodes:[],links:[]};
+    graph=ForceGraph3D()(document.getElementById('galaxy')).backgroundColor('#02040b').showNavInfo(false).nodeId('id').nodeLabel(n=>n.label||'').nodeColor(n=>color(n.group)).nodeVal(3.5).linkColor(()=> 'rgba(90,180,220,.20)').linkOpacity(.34).linkWidth(.55).onNodeClick(n=>{interaction();showNode(n,true);highlight([n.id]);});
+    graph.d3Force('charge').strength(-115);graph.d3Force('link').distance(75);graph.d3VelocityDecay(.28);graph.warmupTicks(80);graph.cooldownTime(18000);graph.graphData(data);graph.cameraPosition({x:0,y:0,z:650},{x:0,y:0,z:0},0);
+    $('count').textContent=data.nodes.length+' NOTES INDEXED · '+data.links.length+' CONNECTIONS';
+    setInterval(()=>graph.d3ReheatSimulation(),12000);
+    speak('Good evening, sir. '+data.nodes.length+' notes indexed, all present and accounted for.');
+    status('READY · NOTES GROUNDED · LOCAL VIEWER');
+   }catch(e){error(e.message||'Could not initialise the galaxy.');}
+ }
+ boot();
+})();
+</script>
+</body>
+</html>
