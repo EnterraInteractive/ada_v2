@@ -134,11 +134,14 @@ class LocalModelRuntime:
                 handler_class = getattr(chat_formats, class_name, None)
                 if handler_class is None:
                     raise ModelRuntimeError(f"Unknown multimodal chat handler: {handler_name}")
-                chat_handler = handler_class(
-                    clip_model_path=str(Path(str(mmproj_path)).expanduser()),
-                    verbose=False,
-                    use_gpu=True,
-                )
+                handler_args = {
+                    "clip_model_path": str(Path(str(mmproj_path)).expanduser()),
+                    "verbose": False,
+                }
+                try:
+                    chat_handler = handler_class(**handler_args, use_gpu=True)
+                except TypeError:
+                    chat_handler = handler_class(**handler_args)
             except Exception as exc:
                 raise ModelRuntimeError(
                     f"Could not initialize the {handler_name} multimodal handler: {exc}"
