@@ -646,7 +646,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "server:app_socketio", 
         host="127.0.0.1", 
-        port=int(os.environ.get("ADA_BACKEND_PORT", "8001")), 
+        port=8001, 
         reload=False, # Reload enabled causes spawn of worker which might miss the event loop policy patch
         loop="asyncio",
     )
