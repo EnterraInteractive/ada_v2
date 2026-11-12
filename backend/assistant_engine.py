@@ -373,7 +373,7 @@ class AssistantEngine:
                         result = f"Invalid tool arguments: {exc}"
                     else:
                         try:
-                            permission_key = "unreal_mcp" if name.startswith("unreal_") else name
+                            permission_key = ("unreal_mcp_readonly" if self.unreal_mcp and self.unreal_mcp.is_read_only(name) else "unreal_mcp") if name.startswith("unreal_") else name
                             if await self._confirm(session_id, name, args, permission_key):
                                 result = await self._execute_tool(name, args)
                             else:
