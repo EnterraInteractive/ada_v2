@@ -50,7 +50,7 @@ def install(project_root: str | Path) -> Path:
         host = address[0] if isinstance(address, tuple) and address else str(address)
         port = address[1] if isinstance(address, tuple) and len(address) > 1 else None
         _write({"kind": "server_http_connection", "host": str(host), "port": port, "reason": _reason()})
-        return _ORIGINAL_CREATE_CONNECTION(address, timeout, source_address, all_errors)
+        return _ORIGINAL_CREATE_CONNECTION(address, timeout, source_address, all_errors=all_errors)
 
     socket.socket.connect = audited_connect
     socket.create_connection = audited_create_connection
