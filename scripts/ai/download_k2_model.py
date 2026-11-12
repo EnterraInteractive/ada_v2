@@ -9,6 +9,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DESTINATION = ROOT / "models" / "language" / "k2-horizon-7b" / "model.gguf"
+CACHE_ROOT = ROOT / ".ada" / "cache"
+HF_CACHE = CACHE_ROOT / "huggingface"
 
 
 def main() -> int:
@@ -17,6 +19,15 @@ def main() -> int:
     parser.add_argument("--quant", default="Q4_K_M", help="Quantization filename marker (default: Q4_K_M).")
     parser.add_argument("--force", action="store_true", help="Replace an existing project-local model file.")
     args = parser.parse_args()
+
+    # Keep Hugging Face metadata and temporary downloads inside the Ada project.
+    HF_CACHE.mkdir(parents=True, exist_ok=True)
+    (CACHE_ROOT / "tmp").mkdir(parents=True, exist_ok=True)
+    import os
+    os.environ["HF_HOME"] = str(HF_CACHE)
+    os.environ["HUGGINGFACE_HUB_CACHE"] = str(HF_CACHE / "hub")
+    os.environ["TEMP"] = str(CACHE_ROOT / "tmp")
+    os.environ["TMP"] = str(CACHE_ROOT / "tmp")
 
     if DESTINATION.exists() and not args.force:
         print(f"Model already exists: {DESTINATION}")
@@ -76,6 +87,7 @@ def main() -> int:
             repo_id=args.repo,
             filename=selected,
             repo_type="model",
+            cache_dir=str(HF_CACHE / "hub"),
         ))
         DESTINATION.parent.mkdir(parents=True, exist_ok=True)
         temporary = DESTINATION.with_suffix(".gguf.download")
