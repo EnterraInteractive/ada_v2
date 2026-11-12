@@ -75,20 +75,24 @@ def main() -> int:
         print("PASS: K2 architecture is recognized. Use --full to verify GPU generation.")
         return 0
 
-    print("Loading K2 on the GPU for a short generation test...")
+    print("Loading K2 on the GPU using A.D.A's actual model configuration...")
     model = None
     try:
-        model = Llama(
-            model_path=str(MODEL),
-            n_ctx=4096,
-            n_batch=256,
-            n_gpu_layers=99,
-            flash_attn=True,
-            offload_kqv=False,
-            type_k=getattr(llama_cpp, "GGML_TYPE_Q8_0"),
-            type_v=getattr(llama_cpp, "GGML_TYPE_Q8_0"),
-            verbose=False,
-        )
+        sys.path.insert(0, str(ROOT / "backend"))
+        from model_runtime import LocalModelRuntime
+        settings_file = ROOT / "backend" / "settings.local.json"
+        if not settings_file.is_file():
+            settings_file = ROOT / "backend" / "settings.json"
+        settings = json.loads(settings_file.read_text(encoding="utf-8"))
+        runtime = LocalModelRuntime(settings)
+        model_config = runtime.registry().get(runtime.config.get("primary_model_id"))
+        if not model_config:
+            return fail("A.D.A's primary K2 model is not registered.")
+        model_config = dict(model_config)
+        model_config["context_size"] = 4096
+        model_config["batch_size"] = 256
+        model_config["max_tokens"] = 256
+        model = runtime._load_model_sync(model_config)
         if args.tool_test:
             tools = [{
                 "type": "function",
