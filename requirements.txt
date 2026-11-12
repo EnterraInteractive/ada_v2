@@ -14,3 +14,7 @@ mcp>=1.10,<2
 # Embedded inference runtime (CUDA 13.0 wheels support RTX 50-series / Blackwell)
 --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130
 llama-cpp-python>=0.3.36,<0.4
+
+# Gemini Live API voice (remote streaming; no local voice model)
+google-genai>=1.30.0,<2
+python-dotenv>=1.0.1,<2
