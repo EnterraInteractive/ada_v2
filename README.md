@@ -212,10 +212,10 @@ A.D.A loads llama.cpp directly into its own Python backend through `llama-cpp-py
 
 1. Install the NVIDIA CUDA 13.0 Toolkit for the RTX 5070 if it is not already installed.
 2. Install Python dependencies with `python -m pip install -r requirements.txt`; this selects the CUDA 13.0 `llama-cpp-python` wheel (0.3.36 or newer for current model and Gemma 4 MTMD support).
-3. Obtain the K2-Horizon 7B GGUF file.
-4. Obtain the Gemma 4 12B Instruct GGUF file and its matching multimodal projector (mmproj) file.
-5. Start A.D.A and open **Settings → Local Model Runtime**.
-6. Set K2 as the primary model and choose the K2 GGUF. Set Gemma 4 as the vision delegate, choose its GGUF and matching mmproj, then save.
+3. Obtain the K2-Horizon 7B GGUF file and place it at `models/language/k2-horizon-7b/model.gguf`.
+4. Obtain the Gemma 4 12B Instruct GGUF and its matching multimodal projector, then place them at `models/vision/gemma-4-12b/model.gguf` and `models/vision/gemma-4-12b/mmproj.gguf`.
+5. Start A.D.A and open **Settings → Local Model Runtime**. The project-relative paths are preconfigured; use the file pickers only if you keep different filenames or locations.
+6. Confirm K2 is the primary model and Gemma 4 is the vision delegate, then save.
 7. Confirm the Enterra Online workspace under **Development Workspace**; its default is `E:/Unreal Projects/EnterraOnline`.
 
 **Runtime behavior**
