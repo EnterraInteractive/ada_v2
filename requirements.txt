@@ -18,4 +18,4 @@ mcp>=1.10,<2
 
 # Embedded inference runtime (CUDA 13.0 wheels support RTX 50-series / Blackwell)
 --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130
-llama-cpp-python>=0.3.20,<0.4
+llama-cpp-python>=0.3.26,<0.4
