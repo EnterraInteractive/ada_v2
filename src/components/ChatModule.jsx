@@ -1,10 +1,12 @@
 import React, { useEffect, useRef } from 'react';
+import { ImagePlus } from 'lucide-react';
 
 const ChatModule = ({
     messages,
     inputValue,
     setInputValue,
     handleSend,
+    handleImageUpload,
     isModularMode,
     activeDragElement,
     position,
@@ -54,6 +56,10 @@ const ChatModule = ({
             </div>
 
             <div className="flex gap-2 relative z-10 absolute bottom-4 left-6 right-6">
+                <label title="Attach an image or screenshot" className="shrink-0 flex items-center justify-center w-11 rounded-lg border border-cyan-700/40 bg-black/40 text-cyan-300 hover:border-cyan-400 cursor-pointer">
+                    <ImagePlus size={18} />
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                </label>
                 <input
                     type="text"
                     value={inputValue}
