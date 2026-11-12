@@ -13,6 +13,7 @@ _LOCK = threading.Lock()
 _INSTALLED = False
 _LOG_PATH: Path | None = None
 _ORIGINAL_CONNECT = socket.socket.connect
+_ORIGINAL_CREATE_CONNECTION = socket.create_connection
 
 
 def _reason() -> str:
@@ -45,7 +46,14 @@ def install(project_root: str | Path) -> Path:
         _write({"kind": "server_socket", "host": str(host), "port": port, "reason": _reason()})
         return _ORIGINAL_CONNECT(sock, address)
 
+    def audited_create_connection(address, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, source_address=None, all_errors=False):
+        host = address[0] if isinstance(address, tuple) and address else str(address)
+        port = address[1] if isinstance(address, tuple) and len(address) > 1 else None
+        _write({"kind": "server_http_connection", "host": str(host), "port": port, "reason": _reason()})
+        return _ORIGINAL_CREATE_CONNECTION(address, timeout, source_address, all_errors)
+
     socket.socket.connect = audited_connect
+    socket.create_connection = audited_create_connection
     _INSTALLED = True
     return _LOG_PATH
 
