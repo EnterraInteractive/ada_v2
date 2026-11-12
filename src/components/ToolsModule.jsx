@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mic, MicOff, Settings, Power, Video, VideoOff, Hand, Globe } from 'lucide-react';
+import { Mic, MicOff, Settings, Power, Video, VideoOff, Hand, Globe, Network } from 'lucide-react';
 
 const ToolsModule = ({
     isConnected,
@@ -15,6 +15,8 @@ const ToolsModule = ({
     onToggleHand,
     onToggleBrowser,
     showBrowserWindow,
+    onToggleKnowledge,
+    showKnowledgeWindow,
     activeDragElement,
 
     position,
@@ -90,6 +92,18 @@ const ToolsModule = ({
                         } `}
                 >
                     <Hand size={24} />
+                </button>
+
+                {/* Knowledge Galaxy Toggle */}
+                <button
+                    onClick={onToggleKnowledge}
+                    className={`p-3 rounded-full border-2 transition-all duration-300 ${showKnowledgeWindow
+                        ? 'border-cyan-300 bg-cyan-300/10 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.3)]'
+                        : 'border-cyan-900 text-cyan-700 hover:border-cyan-500 hover:text-cyan-500'
+                        } `}
+                    title="Knowledge Galaxy"
+                >
+                    <Network size={24} />
                 </button>
 
                 {/* Web Agent Toggle */}
