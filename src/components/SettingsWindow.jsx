@@ -19,7 +19,8 @@ const TOOLS = [
     { id: 'create_project', label: 'Create Project' },
     { id: 'switch_project', label: 'Switch Project' },
     { id: 'list_projects', label: 'List Projects' },
-    { id: 'unreal_mcp', label: 'Unreal Editor Actions' },
+    { id: 'unreal_mcp_readonly', label: 'Unreal Editor Read-Only Queries' },
+    { id: 'unreal_mcp', label: 'Unreal Editor Changes and Actions' },
 ];
 
 const SettingsWindow = ({
