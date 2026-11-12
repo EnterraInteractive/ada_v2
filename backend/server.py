@@ -63,6 +63,7 @@ from web_agent import WebAgent
 from unreal_mcp import UnrealMCPClient
 from dotenv import load_dotenv
 from gemini_voice import GeminiVoiceService
+from local_voice import LocalVoiceService
 
 # Create a Socket.IO server
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
@@ -132,7 +133,7 @@ DEFAULT_SETTINGS = {
             {"id": "gemma-4-12b", "name": "Gemma 4 12B Vision", "model_path": "models/vision/gemma-4-12b/model.gguf", "mmproj_path": "models/vision/gemma-4-12b/mmproj.gguf", "chat_handler": "gemma4", "chat_template_kwargs": {"enable_thinking": true}, "capabilities": ["chat", "vision"], "context_size": 8192, "gpu_layers": 99, "max_tokens": 2048, "temperature": 1.0, "top_p": 0.95, "top_k": 64}
         ]
     },
-    "voice": {"provider": "gemini_api", "enabled": True, "api_key_env": "GEMINI_API_KEY", "model": "gemini-3.8-live"}
+    "voice": {"provider": "local", "enabled": True, "whisper_model_path": "models/voice/whisper-small", "piper_model_path": "models/voice/piper/en_US-lessac-medium.onnx", "whisper_device": "cuda", "whisper_compute_type": "float16"}
 }
 
 SETTINGS = copy.deepcopy(DEFAULT_SETTINGS)
@@ -172,13 +173,11 @@ def load_settings():
                          for legacy_key in ("executable", "host", "port", "startup_timeout_seconds"):
                              SETTINGS["model_runtime"].pop(legacy_key, None)
                     elif k == "voice" and isinstance(v, dict):
-                        # Migrate legacy local Whisper/OS-TTS settings to the
-                        # selected Gemini API provider. Never silently fall
-                        # back to local voice when the old settings file loads.
-                        if v.get("provider") == "gemini_api":
-                            SETTINGS["voice"].update(v)
-                        else:
-                            SETTINGS["voice"] = copy.deepcopy(DEFAULT_SETTINGS["voice"])
+                        # Keep provider selection explicit. Legacy configurations
+                        # are migrated to the project-local voice pipeline.
+                        SETTINGS["voice"].update(v)
+                        if SETTINGS["voice"].get("provider") not in {"local", "gemini_api"}:
+                            SETTINGS["voice"]["provider"] = "local"
                     else:
                         SETTINGS[k] = v
             if not SETTINGS.get("workspace_path") and Path("E:/Unreal Projects/EnterraOnline").is_dir():
@@ -224,10 +223,25 @@ async def handle_voice_local_query(sid: str, prompt: str) -> str:
     return await assistant_engine.respond(prompt, session_id=sid)
 
 
-voice_service = GeminiVoiceService(
-    lambda event, data, room: sio.emit(event, data, room=room),
+_voice_emit = lambda event, data, room: sio.emit(event, data, room=room)
+gemini_voice_service = GeminiVoiceService(
+    _voice_emit,
     local_query=handle_voice_local_query,
 )
+local_voice_service = LocalVoiceService(
+    _voice_emit,
+    local_query=handle_voice_local_query,
+    project_root=PROJECT_ROOT,
+    config=SETTINGS.get("voice", {}),
+)
+
+def get_voice_service():
+    provider = SETTINGS.get("voice", {}).get("provider", "local")
+    if provider == "local":
+        return local_voice_service
+    if provider == "gemini_api":
+        return gemini_voice_service
+    raise RuntimeError(f"Unsupported A.D.A voice provider: {provider}")
 pending_tool_confirmations = {}
 
 def get_latest_image(source='latest'):
@@ -383,7 +397,7 @@ async def connect(sid, environ):
 
 @sio.event
 async def disconnect(sid):
-    await voice_service.stop(sid)
+    await get_voice_service().stop(sid)
     print(f"Client disconnected: {sid}")
 
 @sio.event
@@ -393,17 +407,18 @@ async def start_audio(sid, data=None):
         return
 
     voice_config = SETTINGS.get("voice", {})
-    if voice_config.get("provider") != "gemini_api":
-        await sio.emit("error", {"msg": "Only the Gemini API voice provider is supported."}, room=sid)
-        return
     if not voice_config.get("enabled", True):
-        await sio.emit("error", {"msg": "Gemini API voice is disabled in A.D.A Settings."}, room=sid)
+        await sio.emit("voice_error", {"message": "Voice is disabled in A.D.A Settings."}, room=sid)
         return
 
     try:
-        await voice_service.start(sid, voice_config.get("model"))
+        service = get_voice_service()
+        if voice_config.get("provider") == "local":
+            await service.start(sid)
+        else:
+            await service.start(sid, voice_config.get("model"))
     except Exception as exc:
-        print(f"[VOICE] Gemini session could not start: {type(exc).__name__}: {exc}")
+        print(f"[VOICE] {voice_config.get('provider', 'local')} session could not start: {type(exc).__name__}: {exc}")
         await sio.emit("voice_error", {"message": str(exc)}, room=sid)
 
 
@@ -454,7 +469,8 @@ async def shutdown(sid, data=None):
     print("[SERVER] ========================================")
     
     # Close active API voice sessions before shutting down the backend.
-    await voice_service.stop_all()
+    await local_voice_service.stop_all()
+    await gemini_voice_service.stop_all()
 
     # Close browser resources and stop the local inference runtime.
     if browser_agent:
