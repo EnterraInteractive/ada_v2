@@ -699,6 +699,7 @@ async def knowledge_galaxy_speak(payload: dict, response: Response):
         response.headers["X-Jarvis-Voice"] = provider
         return Response(content=wav_buffer.getvalue(), media_type="audio/wav", headers={"X-Jarvis-Voice": provider})
     except Exception as exc:
+        response.status_code = 503
         return {"error": f"{type(exc).__name__}: {exc}"}
 
 
