@@ -112,7 +112,19 @@ def main() -> int:
             message = result["choices"][0]["message"]
             calls = message.get("tool_calls") or []
             if not calls:
-                return fail(f"GPU generation worked, but no parsed tool call was returned. Message: {message}")
+                # The Python wrapper may return K2's native JSON/XML tool envelope
+                # as text; verify the exact parser used by A.D.A as well.
+                sys.path.insert(0, str(ROOT / "backend"))
+                from assistant_engine import AssistantEngine
+                parsed, visible = AssistantEngine._parse_native_tool_calls(
+                    message.get("content") or message.get("reasoning_content") or ""
+                )
+                calls = parsed
+                if not calls:
+                    return fail(
+                        "GPU generation worked, but neither the binding nor A.D.A's "
+                        f"K2 envelope parser recognized a function call. Message: {message}"
+                    )
             print(f"Parsed function call: {calls[0].get('function', {}).get('name')}")
         else:
             result = model.create_chat_completion(
