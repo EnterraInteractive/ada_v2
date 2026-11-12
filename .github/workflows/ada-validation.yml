@@ -23,7 +23,7 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install -r requirements-dev.txt
       - name: Compile backend modules
-        run: python -m compileall -q backend
+        run: python -m compileall -q backend build.py server.py
       - name: Run local assistant and workspace tests
         run: python -m pytest -q tests/test_project_manager.py tests/test_assistant_engine.py tests/test_model_runtime.py tests/test_voice_service.py tests/test_web_agent.py tests/test_unreal_mcp.py
 
