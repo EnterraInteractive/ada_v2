@@ -100,6 +100,10 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
    data=next;graph.graphData(data);$('count').textContent=data.nodes.length+' NOTES INDEXED · '+data.links.length+' CONNECTIONS';
    if(newIndex!==null){const node=data.nodes.find(n=>n.id===newIndex);if(node){node.__pulseUntil=Date.now()+2300;showNode(node,true);highlight([newIndex]);const timer=setInterval(()=>{graph.refresh();if(Date.now()>node.__pulseUntil)clearInterval(timer);},80);}}
  }
+ async function reportBrowserResources(){
+   const hosts=[...new Set(performance.getEntriesByType('resource').map(entry=>{try{return new URL(entry.name).host;}catch{return '';}}).filter(Boolean))];
+   try{await fetch('/network-audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hosts})});}catch{}
+ }
  async function ask(text){
    text=(text||$('question').value).trim();if(!text||busy)return;interaction();clearError();busy=true;$('send').disabled=true;status('● thinking…');$('question').value='';
    try{
@@ -107,17 +111,17 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
       const r=await fetch('/remember',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const result=await r.json();if(result.error)throw new Error(result.error);
       await addNote(result.anchor_node_index??null,result.node_index??null);
       const reply='Consider it filed, sir. My memory has grown another neuron; try not to make a habit of being interesting.';
-      $('answer').textContent=reply;speak(reply);
+      $('answer').textContent=reply;await speak(reply);
     }else{
       const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:text,session_id:sessionId})});const result=await r.json();if(result.error)throw new Error(result.error);
-      $('answer').textContent=result.answer||'';if(result.brain)setBrainBadge(result.brain);speak(result.answer||'');
+      $('answer').textContent=result.answer||'';if(result.brain)setBrainBadge(result.brain);await speak(result.answer||'');
       const ids=(result.nodes||[]).map(Number);
       if(ids.length>=4){highlight(ids);const top=data.nodes.find(n=>n.id===ids[0]);if(top)showNode(top,false);}
       else if(ids.length){const top=ids[0];const neighbors=data.links.filter(l=>Number(l.source?.id??l.source)===top||Number(l.target?.id??l.target)===top).map(l=>Number(l.source?.id??l.source)===top?(l.target?.id??l.target):(l.source?.id??l.source));highlight([top,...neighbors]);const node=data.nodes.find(n=>n.id===top);if(node)showNode(node,true);}
       else highlight([]);
     }
    }catch(e){error(e.message||'Request failed.');status('● ERROR');}
-   finally{busy=false;$('send').disabled=false;if(!statusText.includes('ERROR'))status('READY · LOCAL WHISPER + PIPER · OFFLINE VIEWER');}
+   finally{await reportBrowserResources();busy=false;$('send').disabled=false;if(!statusText.includes('ERROR'))status('READY · LOCAL WHISPER + VOICE · OFFLINE VIEWER');}
  }
  let micStream=null,micContext=null,micProcessor=null,micInput=null,micFrames=[],recording=false,handsFree=false;
  let autoFrames=[],autoSpeechMs=0,autoSilenceMs=0,autoFinishTimer=null,awaitingWakeCommand=false;
@@ -157,6 +161,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
        if(command)await ask(command);return;
      }
      const wakeText=await transcribeFrames(frames,'wake');
+     if(wakeText)status('HEARD · '+wakeText.slice(0,100));
      const wakeMatch=wakeText.match(/^(?:hey\\s+)?jarvis[,.! ]*(.*)$/i);
      if(!wakeMatch)return; // The small model discards speech without the wake word.
      const wakeCommand=(wakeMatch[1]||'').trim();
@@ -228,7 +233,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
     graph.d3Force('charge').strength(-115);graph.d3Force('link').distance(75);graph.d3VelocityDecay(.28);graph.warmupTicks(80);graph.cooldownTime(18000);graph.graphData(data);graph.cameraPosition({x:0,y:0,z:650},{x:0,y:0,z:0},0);
     $('count').textContent=data.nodes.length+' NOTES INDEXED · '+data.links.length+' CONNECTIONS';
     setInterval(()=>graph.d3ReheatSimulation(),12000);
-    fetch('/brain').then(r=>r.ok?r.json():null).then(brain=>setBrainBadge(brain,false)).catch(()=>{});\n    speak('Hello, sir.');
+    fetch('/brain').then(r=>r.ok?r.json():null).then(brain=>setBrainBadge(brain,false)).catch(()=>{});\n    if(!muted)speak('Hello, sir.');
     status('READY · NOTES GROUNDED · LOCAL VIEWER');
    }catch(e){error(e.message||'Could not initialise the galaxy.');}
  }
