@@ -427,12 +427,12 @@ async def voice_audio_chunk(sid, data):
     if isinstance(data, dict):
         data = data.get("audio", b"")
     if isinstance(data, (bytes, bytearray, memoryview)):
-        await voice_service.send_audio(sid, bytes(data))
+        await get_voice_service().send_audio(sid, bytes(data))
 
 
 @sio.event
 async def stop_audio(sid):
-    await voice_service.stop(sid)
+    await get_voice_service().stop(sid)
 
 
 @sio.event
