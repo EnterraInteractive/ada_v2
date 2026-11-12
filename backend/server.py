@@ -21,7 +21,25 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-
+# Default every runtime/cache location to the Ada project so manual backend
+# launches behave the same as Electron launches and do not fill the user profile.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+LOCAL_DATA_ROOT = PROJECT_ROOT / ".ada"
+LOCAL_CACHE_ROOT = LOCAL_DATA_ROOT / "cache"
+LOCAL_PATHS = {
+    "PYTHONPYCACHEPREFIX": LOCAL_CACHE_ROOT / "pycache",
+    "PIP_CACHE_DIR": LOCAL_CACHE_ROOT / "pip",
+    "HF_HOME": LOCAL_CACHE_ROOT / "huggingface",
+    "HUGGINGFACE_HUB_CACHE": LOCAL_CACHE_ROOT / "huggingface" / "hub",
+    "XDG_CACHE_HOME": LOCAL_CACHE_ROOT / "xdg",
+    "TORCH_HOME": LOCAL_CACHE_ROOT / "torch",
+    "PLAYWRIGHT_BROWSERS_PATH": LOCAL_DATA_ROOT / "browsers",
+    "TEMP": LOCAL_CACHE_ROOT / "tmp",
+    "TMP": LOCAL_CACHE_ROOT / "tmp",
+}
+for variable, directory in LOCAL_PATHS.items():
+    directory.mkdir(parents=True, exist_ok=True)
+    os.environ[variable] = str(directory)
 
 # Ensure we can sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -171,7 +189,6 @@ if not os.path.exists(SETTINGS_FILE):
     save_settings()
 
 authenticator = None
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 project_manager = ProjectManager(str(PROJECT_ROOT))
 knowledge_base = KnowledgeBase(
