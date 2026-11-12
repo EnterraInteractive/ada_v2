@@ -294,6 +294,11 @@ function App() {
         socket.on('disconnect', () => {
             setStatus('Disconnected');
             setSocketConnected(false);
+            stopVoiceCapture();
+            stopVoicePlayback();
+            setIsConnected(false);
+            setIsMuted(true);
+            voiceMutedRef.current = true;
         });
         socket.on('status', (data) => {
             addMessage('System', data.msg);
@@ -354,6 +359,7 @@ function App() {
             setIsConnected(false);
             setIsMuted(true);
             voiceMutedRef.current = true;
+            socket.emit('stop_audio');
             setStatus('Connected');
         });
         socket.on('auth_status', (data) => {
