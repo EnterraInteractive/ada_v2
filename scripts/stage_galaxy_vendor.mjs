@@ -14,7 +14,7 @@ async function validExisting() {
     const info = await stat(target);
     const contents = await readFile(target, "utf8");
     const recorded = await readFile(manifest, "utf8");
-    const expected = recorded.match(/SHA-256:\\s*([a-f0-9]{64})/i)?.[1]?.toLowerCase();
+    const expected = recorded.match(/SHA-256:\s*([a-f0-9]{64})/i)?.[1]?.toLowerCase();
     const actual = createHash("sha256").update(await readFile(target)).digest("hex");
     return info.size > 10000
       && contents.includes("ForceGraph3D")
