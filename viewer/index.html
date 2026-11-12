@@ -69,7 +69,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
    if(current)chunks.push(current);return chunks;
  }
  async function fetchSpeech(text,provider=null){
-   const response=await fetch('/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+   const response=await fetch('/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(provider?{text,provider}:{text})});
    if(!response.ok)throw new Error(await response.text()||'local speech request failed');
    return {audio:await response.arrayBuffer(),provider:response.headers.get('X-Jarvis-Voice')||'local voice'};
  }
