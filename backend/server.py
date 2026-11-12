@@ -41,6 +41,17 @@ for variable, directory in LOCAL_PATHS.items():
     directory.mkdir(parents=True, exist_ok=True)
     os.environ[variable] = str(directory)
 
+if os.environ.get("ADA_ALLOW_EXTERNAL_PYTHON") != "1":
+    managed_python_root = (LOCAL_DATA_ROOT / "python").resolve()
+    python_base_prefix = Path(sys.base_prefix).resolve()
+    try:
+        python_base_prefix.relative_to(managed_python_root)
+    except ValueError as exc:
+        raise RuntimeError(
+            "A.D.A must run with its project-local Python runtime under .ada/python. "
+            "Run scripts/setup_local.ps1 and launch through scripts/run_ada.ps1."
+        ) from exc
+
 # Ensure we can sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from authenticator import FaceAuthenticator
