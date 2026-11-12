@@ -337,6 +337,12 @@ async def intercept_voice_command(prompt: str):
         state = voice_status()
         return f"Using the {state['provider']} voice, {state['profile']}, sir."
     if re.search(r"\b(use|switch to) (your )?(local|cloned) voice\b", folded):
+        try:
+            await asyncio.to_thread(voice_studio_service.ensure_ready)
+        except Exception as exc:
+            SETTINGS.setdefault("voice_studio", {})["enabled"] = False
+            local_voice_service.tts_callback = None
+            return f"VoiceStudio is not ready, sir; I shall keep using local Piper. {exc}"
         SETTINGS.setdefault("voice_studio", {})["enabled"] = True
         local_voice_service.tts_callback = voice_studio_service.synthesize_pcm16
         return f"Certainly, sir. The cloned {ACTIVE_VOICE} voice is selected."
@@ -350,7 +356,7 @@ async def intercept_voice_command(prompt: str):
     if match:
         profile = match.group(1).strip().strip('". ')
         try:
-            voice_studio_service.set_profile(profile)
+            await asyncio.to_thread(voice_studio_service.set_profile, profile)
             SETTINGS.setdefault("voice_studio", {})["profile"] = profile
             ACTIVE_VOICE = profile
             SETTINGS["voice_studio"]["enabled"] = True
