@@ -576,7 +576,7 @@ async def knowledge_galaxy_speak(payload: dict):
             except Exception as studio_exc:
                 print(f"[VOICE] VoiceStudio unavailable; using local Piper fallback: {type(studio_exc).__name__}: {studio_exc}")
         if audio is None:
-            await local_voice_service._load_models()
+            await local_voice_service._load_piper_only()
             audio = await asyncio.to_thread(local_voice_service._synthesize, text)
         return {"ok": True, "provider": provider, "audio_pcm16": base64.b64encode(audio).decode("ascii"), "sample_rate": 24000}
     except Exception as exc:
