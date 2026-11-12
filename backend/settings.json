@@ -71,10 +71,12 @@
         ]
     },
     "voice": {
-        "provider": "gemini_api",
+        "provider": "local",
         "enabled": true,
-        "api_key_env": "GEMINI_API_KEY",
-        "model": "gemini-3.8-live"
+        "whisper_model_path": "models/voice/whisper-small",
+        "piper_model_path": "models/voice/piper/en_US-lessac-medium.onnx",
+        "whisper_device": "cuda",
+        "whisper_compute_type": "float16"
     },
     "unreal_mcp": {
         "enabled": true,
