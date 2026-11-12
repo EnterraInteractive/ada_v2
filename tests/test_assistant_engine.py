@@ -32,13 +32,13 @@ def test_parse_k2_xml_json_tool_call():
 
 def test_parse_k2_native_ifm_json_tool_call_envelope():
     content = (
-        "<ifm|tool_calls>\\n"
-        '<ifm|tool_call>{"name":"read_file","arguments":{"path":"Source/Player.cpp"}}</ifm|tool_call>\\n'
+        "<ifm|tool_calls>\n"
+        '<ifm|tool_call>{"name":"read_file","arguments":{"path":"Source/Player.cpp"}}</ifm|tool_call>\n'
         "</ifm|tool_calls>"
     )
     calls, visible = AssistantEngine._parse_native_tool_calls(content)
 
-    assert visible == "<ifm|tool_calls>\\n\\n</ifm|tool_calls>"
+    assert visible == "<ifm|tool_calls>\n\n</ifm|tool_calls>"
     assert len(calls) == 1
     assert calls[0]["function"]["name"] == "read_file"
     assert json.loads(calls[0]["function"]["arguments"]) == {"path": "Source/Player.cpp"}
