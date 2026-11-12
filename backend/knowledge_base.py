@@ -18,7 +18,11 @@ IGNORED_DIRECTORIES = {
     "node_modules", ".venv", "venv", "env", "Binaries", "Intermediate",
     "DerivedDataCache", "Saved", "Build", "dist", "coverage", "Cache",
 }
-SENSITIVE_NAMES = {".env", ".env.local", ".env.production", "secrets.json", "credentials.json"}
+SENSITIVE_NAMES = {
+    ".env", ".env.local", ".env.production", "secrets.json", "credentials.json",
+    "id_rsa", "id_ed25519", "authorized_keys", "token.json",
+}
+SENSITIVE_SUFFIXES = {".key", ".pem", ".p12", ".pfx"}
 TOKEN_RE = re.compile(r"[\w'-]{2,}", re.UNICODE)
 WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
 
@@ -109,7 +113,7 @@ class KnowledgeBase:
     def _index_path(self, path: Path) -> int | None:
         try:
             stat = path.stat()
-            if stat.st_size > self.max_file_bytes or path.name.lower() in SENSITIVE_NAMES:
+            if stat.st_size > self.max_file_bytes or path.name.lower() in SENSITIVE_NAMES or path.suffix.lower() in SENSITIVE_SUFFIXES:
                 return None
             content = self._read_document(path).strip()
             if not content:
@@ -169,7 +173,11 @@ class KnowledgeBase:
             )
             for filename in sorted(filenames):
                 path = Path(current) / filename
-                if path.suffix.lower() in SUPPORTED_SUFFIXES and filename.lower() not in SENSITIVE_NAMES:
+                if (
+                    path.suffix.lower() in SUPPORTED_SUFFIXES
+                    and filename.lower() not in SENSITIVE_NAMES
+                    and path.suffix.lower() not in SENSITIVE_SUFFIXES
+                ):
                     yield path
 
     def reindex(self) -> dict:
