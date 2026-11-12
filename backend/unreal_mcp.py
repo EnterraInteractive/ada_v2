@@ -65,6 +65,18 @@ class UnrealMCPClient:
             self.last_error = "Unreal MCP must use a local HTTP endpoint or an HTTPS endpoint."
             return False
 
+        if parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"}:
+            try:
+                _reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(parsed.hostname, parsed.port or 80),
+                    timeout=0.5,
+                )
+                writer.close()
+                await writer.wait_closed()
+            except Exception as exc:
+                self.last_error = f"Unreal MCP endpoint is not available at {url}: {exc}"
+                return False
+
         stack = AsyncExitStack()
         await stack.__aenter__()
         try:
