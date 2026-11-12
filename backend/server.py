@@ -278,7 +278,11 @@ async def switch_brain(name: str):
         return {"ok": False, "error": f"Model '{model_id}' is not registered for chat."}
     model_path = model_runtime._resolve_path(model.get("model_path"))
     if model_path is None or not model_path.is_file():
-        return {"ok": False, "error": f"The {model.get('name', model_id)} model file is not installed locally."}
+        return {"ok": False, "error": f"The {model.get('name', model_id)} model file is not installed locally under ada_v2."}
+    if model_id == model_runtime.config.get("vision_model_id"):
+        mmproj_path = model_runtime._resolve_path(model.get("mmproj_path"))
+        if mmproj_path is None or not mmproj_path.is_file():
+            return {"ok": False, "error": "The Gemma vision model's matching mmproj file is not installed locally."}
     await model_runtime.update_config({"primary_model_id": model_id})
     ACTIVE_BRAIN = name
     return {"ok": True, **brain_status()}
