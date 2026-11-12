@@ -17,3 +17,6 @@ mcp>=1.10,<2
 # Gemini Live API voice (remote streaming; no local voice model)
 google-genai>=1.30.0,<2
 python-dotenv>=1.0.1,<2
+
+# Project-local GGUF model downloads
+huggingface_hub>=0.26,<2
