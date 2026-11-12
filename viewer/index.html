@@ -49,7 +49,6 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  const clearError = () => $('error').style.display='none';
  const color = group => {let h=0;for(const c of String(group||'notes'))h=(h*31+c.charCodeAt(0))|0;return 'hsl('+Math.abs(h)%360+',85%,68%)';};
  let currentSource=null,playbackContext=null;
- let currentSource=null,playbackContext=null;
  async function playPcm(encoded,sampleRate=24000){
    if(muted||!encoded)return;
    if(currentSource){try{currentSource.stop();}catch{}currentSource=null;}
