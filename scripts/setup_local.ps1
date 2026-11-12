@@ -7,18 +7,18 @@ param(
 $ErrorActionPreference = "Stop"
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $VenvRoot = Join-Path $ProjectRoot ".venv"
-$Python = Join-Path $VenvRoot "Scripts\\python.exe"
-$CacheRoot = Join-Path $ProjectRoot ".ada\\cache"
+$Python = Join-Path (Join-Path $VenvRoot "Scripts") "python.exe"
+$CacheRoot = Join-Path (Join-Path $ProjectRoot ".ada") "cache"
 
 $Directories = @(
     $CacheRoot,
     (Join-Path $CacheRoot "pip"),
     (Join-Path $CacheRoot "huggingface"),
-    (Join-Path $CacheRoot "huggingface\\hub"),
+    (Join-Path (Join-Path $CacheRoot "huggingface") "hub"),
     (Join-Path $CacheRoot "xdg"),
     (Join-Path $CacheRoot "torch"),
     (Join-Path $CacheRoot "tmp"),
-    (Join-Path $ProjectRoot ".ada\\browsers")
+    (Join-Path (Join-Path $ProjectRoot ".ada") "browsers")
 )
 New-Item -ItemType Directory -Force -Path $Directories | Out-Null
 
@@ -28,7 +28,7 @@ $env:HF_HOME = Join-Path $CacheRoot "huggingface"
 $env:HUGGINGFACE_HUB_CACHE = Join-Path $env:HF_HOME "hub"
 $env:XDG_CACHE_HOME = Join-Path $CacheRoot "xdg"
 $env:TORCH_HOME = Join-Path $CacheRoot "torch"
-$env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $ProjectRoot ".ada\\browsers"
+$env:PLAYWRIGHT_BROWSERS_PATH = Join-Path (Join-Path $ProjectRoot ".ada") "browsers"
 $env:TEMP = Join-Path $CacheRoot "tmp"
 $env:TMP = $env:TEMP
 
