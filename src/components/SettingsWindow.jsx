@@ -301,7 +301,7 @@ const SettingsWindow = ({
                 <h3 className="text-cyan-400 font-bold mb-3 text-xs uppercase tracking-wider">Local Model Runtime</h3>
                 <p className="text-[10px] text-cyan-300/80 mb-2">Embedded llama-cpp-python runtime · inference runs inside A.D.A. No llama-server process or separate model app.</p>
                 <p className={`text-[10px] mb-3 ${modelRuntimeStatus.runtime_available ? "text-green-400" : "text-amber-400"}`}>
-                    {modelRuntimeStatus.runtime_available ? "Native inference runtime is available." : (modelRuntimeStatus.runtime_error || "Install the CUDA-enabled runtime from requirements.txt.")}
+                    {modelRuntimeStatus.runtime_available ? (modelRuntimeStatus.gpu_offload_supported ? "Native runtime and GPU offload are available." : (modelRuntimeStatus.runtime_error || "GPU offload is unavailable.")) : (modelRuntimeStatus.runtime_error || "Install the CUDA-enabled runtime from requirements.txt.")}
                 </p>
 
                 <label className="block text-[10px] text-cyan-500/70 mb-1">Primary chat / coding model</label>
