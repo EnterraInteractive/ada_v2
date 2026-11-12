@@ -124,7 +124,7 @@ class GeminiVoiceService:
                 input_transcription = _value(server_content, "input_transcription")
                 input_text = _value(input_transcription, "text", "")
                 if input_text:
-                    await self.emit("voice_transcription", {
+                    await self.emit("transcription", {
                         "sender": "You", "text": input_text, "final": True
                     }, voice_session.sid)
 
