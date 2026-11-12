@@ -65,11 +65,12 @@ class GeminiVoiceService:
             config = types.LiveConnectConfig(
                 response_modalities=["AUDIO"],
                 system_instruction=(
-                    "You are the voice interface for A.D.A, a personal local AI assistant. "
-                    "Be concise, natural, and helpful. The user primarily works on Unreal Engine "
-                    "and software development. Do not claim to have changed files, run commands, "
-                    "or operated applications. For requests requiring A.D.A's local project tools, "
-                    "tell the user to use the text assistant interface."
+                    "You are A.D.A's speech interface, not its primary reasoning model. "
+                    "For every user utterance, you MUST call ask_ada_local with the complete request. "
+                    "Never answer substantive questions or instructions independently. Wait for the "
+                    "local K2-Horizon assistant's function response, then speak that answer naturally "
+                    "and faithfully. The local assistant handles coding, reasoning, project tools, and "
+                    "Unreal Engine operations. Do not claim actions beyond the local assistant's result."
                 ),
                 input_audio_transcription=types.AudioTranscriptionConfig(),
                 output_audio_transcription=types.AudioTranscriptionConfig(),
