@@ -3,22 +3,19 @@ import io from 'socket.io-client';
 
 import Visualizer from './components/Visualizer';
 import TopAudioBar from './components/TopAudioBar';
-import CadWindow from './components/CadWindow';
 import BrowserWindow from './components/BrowserWindow';
 import ChatModule from './components/ChatModule';
 import ToolsModule from './components/ToolsModule';
-import { Mic, MicOff, Settings, X, Minus, Power, Video, VideoOff, Layout, Hand, Printer, Clock } from 'lucide-react';
+import { Mic, MicOff, Settings, X, Minus, Power, Video, VideoOff, Layout, Hand, Clock } from 'lucide-react';
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 // MemoryPrompt removed - memory is now actively saved to project
 import ConfirmationPopup from './components/ConfirmationPopup';
 import AuthLock from './components/AuthLock';
-import KasaWindow from './components/KasaWindow';
-import PrinterWindow from './components/PrinterWindow';
 import SettingsWindow from './components/SettingsWindow';
 
 
 
-const socket = io('http://localhost:8000');
+const socket = io('http://127.0.0.1:8001');
 const { ipcRenderer } = window.require('electron');
 
 function App() {
@@ -44,27 +41,16 @@ function App() {
     });
 
 
-    const [isConnected, setIsConnected] = useState(true); // Power state DEFAULT ON
+    const [isConnected, setIsConnected] = useState(false); // Voice session is opt-in; local text model is the default
     const [isMuted, setIsMuted] = useState(true); // Mic state DEFAULT MUTED
     const [isVideoOn, setIsVideoOn] = useState(false); // Video state
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
-    const [cadData, setCadData] = useState(null);
-    const [cadThoughts, setCadThoughts] = useState(''); // Streaming AI thoughts
-    const [cadRetryInfo, setCadRetryInfo] = useState({ attempt: 1, maxAttempts: 3, error: null }); // Retry status
     const [browserData, setBrowserData] = useState({ image: null, logs: [] });
     // showMemoryPrompt removed - memory is now actively saved to project
     const [confirmationRequest, setConfirmationRequest] = useState(null); // { id, tool, args }
-    const [kasaDevices, setKasaDevices] = useState([]);
-    const [showKasaWindow, setShowKasaWindow] = useState(false);
-    const [showPrinterWindow, setShowPrinterWindow] = useState(false);
-    const [showCadWindow, setShowCadWindow] = useState(false);
     const [showBrowserWindow, setShowBrowserWindow] = useState(false);
 
-    // Printing workflow status (for top toolbar display)
-    const [slicingStatus, setSlicingStatus] = useState({ active: false, percent: 0, message: '' });
-    const [activePrintStatus, setActivePrintStatus] = useState(null); // {printer, progress_percent, time_elapsed, state}
-    const [printerCount, setPrinterCount] = useState(0); // Count of connected printers
     const [currentTime, setCurrentTime] = useState(new Date()); // Live clock
 
 
@@ -84,6 +70,10 @@ function App() {
     const [selectedWebcamId, setSelectedWebcamId] = useState(() => localStorage.getItem('selectedWebcamId') || '');
     const [showSettings, setShowSettings] = useState(false);
     const [currentProject, setCurrentProject] = useState('default');
+    const [modelStatus, setModelStatus] = useState(null);
+    const [unrealMcpStatus, setUnrealMcpStatus] = useState({ connected: false, tool_count: 0 });
+    const [assistantStatus, setAssistantStatus] = useState('idle');
+    const [workspacePath, setWorkspacePath] = useState('');
 
     // Modular Mode State
     const [isModularMode, setIsModularMode] = useState(false);
@@ -91,10 +81,7 @@ function App() {
         video: { x: 40, y: 80 }, // Initial positions (approximate)
         visualizer: { x: window.innerWidth / 2, y: window.innerHeight / 2 - 150 },
         chat: { x: window.innerWidth / 2, y: window.innerHeight / 2 + 100 },
-        cad: { x: window.innerWidth / 2 + 300, y: window.innerHeight / 2 },
         browser: { x: window.innerWidth / 2 - 300, y: window.innerHeight / 2 },
-        kasa: { x: window.innerWidth / 2 + 350, y: window.innerHeight / 2 - 100 },
-        printer: { x: window.innerWidth / 2 - 350, y: window.innerHeight / 2 - 100 },
         tools: { x: window.innerWidth / 2, y: window.innerHeight - 100 } // Fixed bottom OFFSET
     });
 
@@ -102,17 +89,14 @@ function App() {
         visualizer: { w: 550, h: 350 },
         chat: { w: 550, h: 220 },
         tools: { w: 500, h: 80 }, // Approx
-        cad: { w: 400, h: 400 },
         browser: { w: 550, h: 380 },
         video: { w: 320, h: 180 },
-        kasa: { w: 300, h: 380 }, // Approx
-        printer: { w: 380, h: 380 } // Approx
     });
     const [activeDragElement, setActiveDragElement] = useState(null);
 
     // Z-Index Stacking Order (last element = highest z-index)
     const [zIndexOrder, setZIndexOrder] = useState([
-        'visualizer', 'chat', 'tools', 'video', 'cad', 'browser', 'kasa', 'printer'
+        'visualizer', 'chat', 'tools', 'video', 'browser'
     ]);
 
     // Hand Control State
@@ -135,6 +119,16 @@ function App() {
     const analyserRef = useRef(null);
     const sourceRef = useRef(null);
     const animationFrameRef = useRef(null);
+    // Gemini Live API audio capture and playback (no local speech model).
+    const voiceStreamRef = useRef(null);
+    const voiceContextRef = useRef(null);
+    const voiceSourceRef = useRef(null);
+    const voiceProcessorRef = useRef(null);
+    const voiceMuteGainRef = useRef(null);
+    const voiceMutedRef = useRef(true);
+    const playbackContextRef = useRef(null);
+    const playbackTimeRef = useRef(0);
+    const playbackSourcesRef = useRef(new Set());
 
     // Video Refs
     const videoRef = useRef(null);
@@ -285,35 +279,7 @@ function App() {
         });
     };
 
-    // Ref to track if model has been auto-connected (prevents duplicate connections)
-    const hasAutoConnectedRef = useRef(false);
-
-    // Auto-Connect Model on Start (Only after Auth and devices loaded)
-    useEffect(() => {
-        // Only auto-connect once: when socket connected, authenticated, and devices loaded
-        if (isConnected && isAuthenticated && socketConnected && micDevices.length > 0 && !hasAutoConnectedRef.current) {
-            hasAutoConnectedRef.current = true;
-
-            // Trigger Kasa and Printer Discovery
-            socket.emit('discover_kasa');
-            socket.emit('discover_printers');
-
-            // Connect to model with small delay for socket stability
-            const timer = setTimeout(() => {
-                const index = micDevices.findIndex(d => d.deviceId === selectedMicId);
-                const queryDevice = micDevices.find(d => d.deviceId === selectedMicId);
-                const deviceName = queryDevice ? queryDevice.label : null;
-                console.log("Auto-connecting to model with device:", deviceName, "Index:", index);
-
-                setStatus('Connecting...');
-                socket.emit('start_audio', {
-                    device_index: index >= 0 ? index : null,
-                    device_name: deviceName,
-                    muted: isMuted
-                });
-            }, 500);
-        }
-    }, [isConnected, isAuthenticated, socketConnected, micDevices, selectedMicId]);
+    // Local model chat starts on demand; voice sessions are opt-in.
 
     useEffect(() => {
         // Socket IO Setup
@@ -321,10 +287,18 @@ function App() {
             setStatus('Connected');
             setSocketConnected(true);
             socket.emit('get_settings');
+            socket.emit('get_model_status');
+            socket.emit('get_unreal_mcp_status');
+            socket.emit('get_chat_history');
         });
         socket.on('disconnect', () => {
             setStatus('Disconnected');
             setSocketConnected(false);
+            stopVoiceCapture();
+            stopVoicePlayback();
+            setIsConnected(false);
+            setIsMuted(true);
+            voiceMutedRef.current = true;
         });
         socket.on('status', (data) => {
             addMessage('System', data.msg);
@@ -335,8 +309,58 @@ function App() {
                 setStatus('Connected');
             }
         });
+        socket.on('chat_history', (data) => {
+            setMessages(Array.isArray(data?.messages) ? data.messages : []);
+        });
+        socket.on('model_status', (data) => {
+            setModelStatus(data);
+        });
+        socket.on('unreal_mcp_status', (data) => {
+            setUnrealMcpStatus(data || { connected: false, tool_count: 0 });
+        });
+        socket.on('assistant_status', (data) => {
+            setAssistantStatus(data.state || 'idle');
+        });
+        socket.on('workspace_status', (data) => {
+            setCurrentProject(data.name || 'workspace');
+            setWorkspacePath(data.path || '');
+            socket.emit('get_chat_history');
+        });
         socket.on('audio_data', (data) => {
             setAiAudioData(data.data);
+        });
+        socket.on('voice_ready', async () => {
+            setIsConnected(true);
+            setIsMuted(false);
+            voiceMutedRef.current = false;
+            setStatus('Gemini Voice Connected');
+            addMessage('System', 'Gemini voice connected.');
+            try {
+                await startVoiceCapture();
+            } catch (err) {
+                addMessage('System', `Microphone error: ${err.message}`);
+                socket.emit('stop_audio');
+                setIsConnected(false);
+            }
+        });
+        socket.on('voice_audio', (data) => playVoiceAudio(data));
+        socket.on('voice_interrupted', () => stopVoicePlayback());
+        socket.on('voice_closed', () => {
+            stopVoiceCapture();
+            stopVoicePlayback();
+            setIsConnected(false);
+            setIsMuted(true);
+            voiceMutedRef.current = true;
+            setStatus('Connected');
+        });
+        socket.on('voice_error', (data) => {
+            addMessage('System', `Gemini voice error: ${data.message || 'Unknown error'}`);
+            stopVoiceCapture();
+            setIsConnected(false);
+            setIsMuted(true);
+            voiceMutedRef.current = true;
+            socket.emit('stop_audio');
+            setStatus('Connected');
         });
         socket.on('auth_status', (data) => {
             console.log("Auth Status:", data);
@@ -371,55 +395,10 @@ function App() {
         socket.on('error', (data) => {
             console.error("Socket Error:", data);
             addMessage('System', `Error: ${data.msg}`);
-        });
-        socket.on('cad_data', (data) => {
-            console.log("Received CAD Data:", data);
-            setCadData(data);
-            setCadThoughts(''); // Clear thoughts when generation complete
-            setShowCadWindow(true); // Open window when data arrives
-            // Auto-show the window if it's hidden, clamped to viewport
-            if (!elementPositions.cad) {
-                const size = { w: 400, h: 400 };
-                const clamped = clampToViewport({ x: window.innerWidth / 2 + 150, y: window.innerHeight / 2 }, size);
-                setElementPositions(prev => ({
-                    ...prev,
-                    cad: clamped
-                }));
+            if (String(data.msg || '').includes('Local voice could not start') || String(data.msg || '').startsWith('Microphone error')) {
+                setIsConnected(false);
+                setStatus('Connected');
             }
-        });
-        socket.on('cad_status', (data) => {
-            console.log("Received CAD Status:", data);
-            // Extract retry info from extended payload
-            if (data.attempt) {
-                setCadRetryInfo({
-                    attempt: data.attempt,
-                    maxAttempts: data.max_attempts || 3,
-                    error: data.error
-                });
-            }
-            if (data.status === 'generating' || data.status === 'retrying') {
-                setCadData({ format: 'loading' });
-                setShowCadWindow(true);
-                if (data.status === 'generating' && data.attempt === 1) {
-                    setCadThoughts(''); // Clear previous thoughts for new generation
-                }
-                // Auto-show the window, clamped to viewport
-                if (!elementPositions.cad) {
-                    const size = { w: 400, h: 400 };
-                    const clamped = clampToViewport({ x: window.innerWidth / 2 + 150, y: window.innerHeight / 2 }, size);
-                    setElementPositions(prev => ({
-                        ...prev,
-                        cad: clamped
-                    }));
-                }
-            } else if (data.status === 'failed') {
-                // Keep loading state but show error
-                setCadData({ format: 'loading' });
-            }
-        });
-        socket.on('cad_thought', (data) => {
-            // Append streaming thought text
-            setCadThoughts(prev => prev + data.text);
         });
         socket.on('browser_frame', (data) => {
             setBrowserData(prev => ({
@@ -470,77 +449,12 @@ function App() {
             setConfirmationRequest(data);
         });
 
-        // Handle Print Window Request (from CadWindow)
-        socket.on('request_print_window', () => {
-            setShowPrinterWindow(true);
-            const size = { w: 380, h: 380 };
-            const clamped = clampToViewport({ x: window.innerWidth / 2, y: window.innerHeight / 2 }, size);
-            setElementPositions(prev => ({
-                ...prev,
-                printer: clamped
-            }));
-        });
-
-        // Kasa Devices
-        socket.on('kasa_devices', (devices) => {
-            console.log("Kasa Devices:", devices);
-            setKasaDevices(devices);
-        });
-
-        socket.on('kasa_update', (data) => {
-            setKasaDevices(prev => prev.map(d => {
-                if (d.ip === data.ip) {
-                    // Update only fields that are not null/undefined
-                    return {
-                        ...d,
-                        is_on: data.is_on !== null ? data.is_on : d.is_on,
-                        brightness: data.brightness !== null ? data.brightness : d.brightness
-                    };
-                }
-                return d;
-            }));
-        });
-
         socket.on('project_update', (data) => {
             console.log("Project Update:", data.project);
             setCurrentProject(data.project);
             addMessage('System', `Switched to project: ${data.project}`);
+            socket.emit('get_chat_history');
         });
-
-        // Track printer count for toolbar display
-        socket.on('printer_list', (list) => {
-            console.log('[PRINTERS] Count:', list.length);
-            setPrinterCount(list.length);
-        });
-
-        // Slicing progress for top toolbar
-        socket.on('slicing_progress', (data) => {
-            console.log('[SLICING] Progress:', data);
-            setSlicingStatus({
-                active: data.percent < 100,
-                percent: data.percent,
-                message: data.message
-            });
-        });
-
-        // Print status for top toolbar - track active prints
-        socket.on('print_status_update', (data) => {
-            console.log('[PRINT STATUS]', data);
-            // Only show in toolbar if actively printing
-            if (data.state && data.state.toLowerCase().includes('print')) {
-                setActivePrintStatus({
-                    printer: data.printer,
-                    progress_percent: data.progress_percent,
-                    time_elapsed: data.time_elapsed,
-                    state: data.state
-                });
-            } else if (data.state && (data.state.toLowerCase() === 'idle' || data.state.toLowerCase() === 'standby' || data.state.toLowerCase() === 'complete')) {
-                // Clear if print finished or idle
-                setActivePrintStatus(null);
-            }
-        });
-
-
 
         // Get All Media Devices (Microphones, Speakers, Webcams)
         navigator.mediaDevices.enumerateDevices().then(devs => {
@@ -621,20 +535,25 @@ function App() {
             socket.off('connect');
             socket.off('disconnect');
             socket.off('status');
+            socket.off('chat_history');
+            socket.off('model_status');
+            socket.off('unreal_mcp_status');
+            socket.off('assistant_status');
+            socket.off('workspace_status');
             socket.off('audio_data');
-            socket.off('cad_data');
-            socket.off('cad_thought');
-            socket.off('cad_status');
+            socket.off('voice_ready');
+            socket.off('voice_audio');
+            socket.off('voice_interrupted');
+            socket.off('voice_closed');
+            socket.off('voice_error');
             socket.off('browser_frame');
             socket.off('transcription');
             socket.off('tool_confirmation_request');
-            socket.off('kasa_devices');
-            socket.off('printer_list');
-            socket.off('slicing_progress');
-            socket.off('print_status_update');
             socket.off('error');
 
             stopMicVisualizer();
+            stopVoiceCapture();
+            stopVoicePlayback();
             stopVideo();
         };
     }, []);
@@ -969,7 +888,7 @@ function App() {
                 if (isFist) {
                     if (!activeDragElementRef.current) {
                         // Only check popup windows (draggable elements)
-                        const draggableElements = ['cad', 'browser', 'kasa', 'printer'];
+                        const draggableElements = ['browser'];
 
                         for (const id of draggableElements) {
                             const el = document.getElementById(id);
@@ -1071,16 +990,135 @@ function App() {
         setMessages(prev => [...prev, { sender, text, time: new Date().toLocaleTimeString() }]);
     };
 
+    const stopVoiceCapture = () => {
+        if (voiceProcessorRef.current) {
+            voiceProcessorRef.current.onaudioprocess = null;
+            voiceProcessorRef.current.disconnect();
+            voiceProcessorRef.current = null;
+        }
+        if (voiceSourceRef.current) {
+            voiceSourceRef.current.disconnect();
+            voiceSourceRef.current = null;
+        }
+        if (voiceMuteGainRef.current) {
+            voiceMuteGainRef.current.disconnect();
+            voiceMuteGainRef.current = null;
+        }
+        if (voiceStreamRef.current) {
+            voiceStreamRef.current.getTracks().forEach(track => track.stop());
+            voiceStreamRef.current = null;
+        }
+        if (voiceContextRef.current) {
+            voiceContextRef.current.close().catch(() => {});
+            voiceContextRef.current = null;
+        }
+    };
+
+    const startVoiceCapture = async () => {
+        stopVoiceCapture();
+        const constraints = {
+            audio: selectedMicId
+                ? { deviceId: { exact: selectedMicId }, channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                : { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        voiceStreamRef.current = stream;
+        let context;
+        try {
+            context = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        } catch {
+            context = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        voiceContextRef.current = context;
+        await context.resume();
+        const source = context.createMediaStreamSource(stream);
+        const processor = context.createScriptProcessor(2048, 1, 1);
+        const muteGain = context.createGain();
+        muteGain.gain.value = 0;
+        voiceSourceRef.current = source;
+        voiceProcessorRef.current = processor;
+        voiceMuteGainRef.current = muteGain;
+
+        processor.onaudioprocess = (event) => {
+            if (voiceMutedRef.current || !socket.connected) return;
+            const input = event.inputBuffer.getChannelData(0);
+            const ratio = context.sampleRate / 16000;
+            const outputLength = Math.floor(input.length / ratio);
+            if (!outputLength) return;
+            const pcm = new Int16Array(outputLength);
+            for (let i = 0; i < outputLength; i++) {
+                const position = i * ratio;
+                const left = Math.floor(position);
+                const right = Math.min(left + 1, input.length - 1);
+                const fraction = position - left;
+                const sample = input[left] * (1 - fraction) + input[right] * fraction;
+                const clipped = Math.max(-1, Math.min(1, sample));
+                pcm[i] = clipped < 0 ? clipped * 32768 : clipped * 32767;
+            }
+            socket.emit('voice_audio_chunk', pcm.buffer);
+        };
+        source.connect(processor);
+        processor.connect(muteGain);
+        muteGain.connect(context.destination);
+    };
+
+    const stopVoicePlayback = () => {
+        playbackSourcesRef.current.forEach(source => {
+            try { source.stop(); } catch {}
+        });
+        playbackSourcesRef.current.clear();
+        if (playbackContextRef.current) {
+            playbackTimeRef.current = playbackContextRef.current.currentTime;
+        }
+    };
+
+    const playVoiceAudio = async (data) => {
+        if (!data?.audio) return;
+        let bytes;
+        if (data.audio instanceof ArrayBuffer) {
+            bytes = new Uint8Array(data.audio);
+        } else if (ArrayBuffer.isView(data.audio)) {
+            bytes = new Uint8Array(data.audio.buffer, data.audio.byteOffset, data.audio.byteLength);
+        } else if (Array.isArray(data.audio)) {
+            bytes = new Uint8Array(data.audio);
+        } else {
+            return;
+        }
+        const evenLength = bytes.byteLength - (bytes.byteLength % 2);
+        if (!evenLength) return;
+        const pcm = new Int16Array(bytes.buffer, bytes.byteOffset, evenLength / 2);
+        if (!playbackContextRef.current) {
+            playbackContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+            if (selectedSpeakerId && playbackContextRef.current.setSinkId) {
+                try { await playbackContextRef.current.setSinkId(selectedSpeakerId); } catch {}
+            }
+        }
+        const context = playbackContextRef.current;
+        await context.resume();
+        const audioBuffer = context.createBuffer(1, pcm.length, data.sample_rate || 24000);
+        const channel = audioBuffer.getChannelData(0);
+        for (let i = 0; i < pcm.length; i++) channel[i] = pcm[i] / 32768;
+        const source = context.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(context.destination);
+        const startAt = Math.max(context.currentTime + 0.025, playbackTimeRef.current);
+        source.start(startAt);
+        playbackTimeRef.current = startAt + audioBuffer.duration;
+        playbackSourcesRef.current.add(source);
+        source.onended = () => playbackSourcesRef.current.delete(source);
+    };
+
     const togglePower = () => {
         if (isConnected) {
+            voiceMutedRef.current = true;
             socket.emit('stop_audio');
+            stopVoiceCapture();
+            stopVoicePlayback();
             setIsConnected(false);
-            setIsMuted(false); // Reset mute state
+            setIsMuted(true);
         } else {
-            const index = micDevices.findIndex(d => d.deviceId === selectedMicId);
-            socket.emit('start_audio', { device_index: index >= 0 ? index : null });
-            setIsConnected(true);
-            setIsMuted(false); // Start unmuted
+            setStatus('Connecting Gemini Voice...');
+            socket.emit('start_audio', { device_name: micDevices.find(d => d.deviceId === selectedMicId)?.label || null });
         }
     };
 
@@ -1088,12 +1126,43 @@ function App() {
         if (!isConnected) return; // Can't mute if not connected
 
         if (isMuted) {
+            voiceMutedRef.current = false;
             socket.emit('resume_audio');
             setIsMuted(false);
         } else {
+            voiceMutedRef.current = true;
             socket.emit('pause_audio');
             setIsMuted(true);
         }
+    };
+
+    const handleImageUpload = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            addMessage('System', 'Please choose an image file.');
+            event.target.value = '';
+            return;
+        }
+        if (file.size > 20 * 1024 * 1024) {
+            addMessage('System', 'Image attachments must be 20 MB or smaller.');
+            event.target.value = '';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            const dataUrl = String(reader.result || '');
+            const encoded = dataUrl.split(',')[1];
+            if (!encoded) {
+                addMessage('System', 'Could not read the selected image.');
+                return;
+            }
+            socket.emit('image_upload', { data: encoded, mime_type: file.type, name: file.name });
+            addMessage('System', `Image attached: ${file.name}. Ask A.D.A to inspect it.`);
+        };
+        reader.onerror = () => addMessage('System', 'Could not read the selected image.');
+        reader.readAsDataURL(file);
+        event.target.value = '';
     };
 
     const handleSend = (e) => {
@@ -1177,7 +1246,7 @@ function App() {
 
             // Bounds Logic
             // Depends on anchor point.
-            // Visualizer, Tools, Cad, Browser, Kasa: translate(-50%, -50%) -> Center Anchor
+            // Visualizer, Tools, and Browser: translate(-50%, -50%) -> Center Anchor
             // Chat: translate(-50%, 0) -> Top-Center Anchor
             // Video: Top-Left Anchor (default div)
 
@@ -1328,17 +1397,6 @@ function App() {
     // Calculate Average Audio Amplitude for Background Pulse
     const audioAmp = aiAudioData.reduce((a, b) => a + b, 0) / aiAudioData.length / 255;
 
-    const toggleKasaWindow = () => {
-        if (!showKasaWindow) {
-            // Maybe trigger discover instantly?
-            if (kasaDevices.length === 0) socket.emit('discover_kasa');
-        }
-        setShowKasaWindow(!showKasaWindow);
-    };
-
-    const togglePrinterWindow = () => {
-        setShowPrinterWindow(!showPrinterWindow);
-    };
 
 
 
@@ -1408,20 +1466,6 @@ function App() {
                             FPS: {fps}
                         </div>
                     )}
-                    {/* Connected Printers Count */}
-                    {printerCount > 0 && (
-                        <div className="flex items-center gap-1.5 text-[10px] text-green-400 border border-green-500/30 bg-green-500/10 px-2 py-0.5 rounded ml-2">
-                            <Printer size={10} className="text-green-400" />
-                            <span>{printerCount} Printer{printerCount !== 1 ? 's' : ''}</span>
-                        </div>
-                    )}
-                    {/* Connected Smart Devices Count */}
-                    {kasaDevices.length > 0 && (
-                        <div className="flex items-center gap-1.5 text-[10px] text-yellow-400 border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 rounded ml-2">
-                            <span>💡</span>
-                            <span>{kasaDevices.length} Device{kasaDevices.length !== 1 ? 's' : ''}</span>
-                        </div>
-                    )}
                 </div>
 
                 {/* Top Visualizer (User Mic) */}
@@ -1481,7 +1525,7 @@ function App() {
                 {/* Video Feed Overlay */}
                 {/* Floating Project Label */}
                 <div className="absolute top-[70px] left-1/2 -translate-x-1/2 text-cyan-500 text-xs font-mono tracking-widest pointer-events-none z-50 bg-black/50 px-2 py-1 rounded backdrop-blur-sm border border-cyan-500/20">
-                    PROJECT: {currentProject?.toUpperCase()}
+                    PROJECT: {currentProject?.toUpperCase()} · MODEL: {modelStatus?.primary_configured ? (modelStatus?.active_model_id || modelStatus?.primary_model_id) : 'NOT CONFIGURED'} · EDITOR: {unrealMcpStatus?.connected ? 'CONNECTED' : 'OFFLINE'} · {assistantStatus.toUpperCase()}
                 </div>
 
                 <div
@@ -1531,52 +1575,6 @@ function App() {
                     />
                 )}
 
-                {/* CAD Window Overlay - Moved outside of Video so it can show independently */}
-                {showCadWindow && (
-                    <div
-                        id="cad"
-                        className={`absolute flex flex-col transition-all duration-200 
-                        backdrop-blur-xl bg-black/40 border border-white/10 shadow-2xl overflow-hidden rounded-2xl
-                        ${activeDragElement === 'cad' ? 'ring-2 ring-green-500 bg-green-500/10' : ''}
-                    `}
-                        style={{
-                            left: elementPositions.cad?.x || window.innerWidth / 2,
-                            top: elementPositions.cad?.y || window.innerHeight / 2,
-                            transform: 'translate(-50%, -50%)',
-                            width: `${elementSizes.cad.w}px`,
-                            height: `${elementSizes.cad.h}px`,
-                            pointerEvents: 'auto',
-                            zIndex: getZIndex('cad')
-                        }}
-                        onMouseDown={(e) => handleMouseDown(e, 'cad')}
-                    >
-                        {/* Drag Handle Header */}
-                        <div
-                            data-drag-handle
-                            className="h-8 bg-gray-900/80 border-b border-cyan-500/20 flex items-center justify-between px-3 cursor-grab active:cursor-grabbing shrink-0"
-                        >
-                            <span className="text-xs font-bold tracking-widest text-cyan-500/70">CAD PROTOTYPE</span>
-                            <button
-                                onClick={() => setShowCadWindow(false)}
-                                className="text-gray-400 hover:text-red-400 hover:bg-red-500/20 p-1 rounded transition-colors"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none mix-blend-overlay z-10"></div>
-                        <div className="relative z-20 flex-1 min-h-0">
-                            <CadWindow
-                                data={cadData}
-                                thoughts={cadThoughts}
-                                retryInfo={cadRetryInfo}
-                                onClose={() => setShowCadWindow(false)}
-                                socket={socket}
-                            />
-                        </div>
-                    </div>
-                )}
-
-
                 {/* Browser Window Overlay */}
                 {showBrowserWindow && (
                     <div
@@ -1615,6 +1613,7 @@ function App() {
                     inputValue={inputValue}
                     setInputValue={setInputValue}
                     handleSend={handleSend}
+                    handleImageUpload={handleImageUpload}
                     isModularMode={isModularMode}
                     activeDragElement={activeDragElement}
                     position={elementPositions.chat}
@@ -1636,12 +1635,6 @@ function App() {
                         onToggleVideo={toggleVideo}
                         onToggleSettings={() => setShowSettings(!showSettings)}
                         onToggleHand={() => setIsHandTrackingEnabled(!isHandTrackingEnabled)}
-                        onToggleKasa={toggleKasaWindow}
-                        showKasaWindow={showKasaWindow}
-                        onTogglePrinter={togglePrinterWindow}
-                        showPrinterWindow={showPrinterWindow}
-                        onToggleCad={() => setShowCadWindow(!showCadWindow)}
-                        showCadWindow={showCadWindow}
                         onToggleBrowser={() => setShowBrowserWindow(!showBrowserWindow)}
                         showBrowserWindow={showBrowserWindow}
                         activeDragElement={activeDragElement}
@@ -1649,33 +1642,6 @@ function App() {
                         onMouseDown={(e) => handleMouseDown(e, 'tools')}
                     />
                 </div>
-
-                {/* Kasa Window */}
-                {showKasaWindow && (
-                    <KasaWindow
-                        socket={socket}
-                        position={elementPositions.kasa}
-                        activeDragElement={activeDragElement}
-                        setActiveDragElement={setActiveDragElement}
-                        devices={kasaDevices}
-                        onClose={() => setShowKasaWindow(false)}
-                        onMouseDown={(e) => handleMouseDown(e, 'kasa')}
-                        zIndex={getZIndex('kasa')}
-                    />
-                )}
-
-                {/* Printer Window */}
-                {showPrinterWindow && (
-                    <PrinterWindow
-                        socket={socket}
-                        onClose={() => setShowPrinterWindow(false)}
-                        position={elementPositions.printer}
-                        onMouseDown={(e) => handleMouseDown(e, 'printer')}
-                        activeDragElement={activeDragElement}
-                        setActiveDragElement={setActiveDragElement}
-                        zIndex={getZIndex('printer')}
-                    />
-                )}
 
                 {/* Memory Prompt removed - memory is now actively saved to project */}
 

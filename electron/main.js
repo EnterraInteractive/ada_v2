@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
@@ -8,6 +8,7 @@ app.commandLine.appendSwitch('use-angle', 'd3d11');
 app.commandLine.appendSwitch('enable-features', 'Vulkan');
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
 
+const BACKEND_PORT = 8001;
 let mainWindow;
 let pythonProcess;
 
@@ -100,9 +101,20 @@ app.whenReady().then(() => {
         if (mainWindow) mainWindow.close();
     });
 
-    checkBackendPort(8000).then((isTaken) => {
+    ipcMain.handle('select-path', async (_event, options = {}) => {
+        const properties = options.directory ? ['openDirectory'] : ['openFile'];
+        const result = await dialog.showOpenDialog(mainWindow, {
+            properties,
+            filters: options.filters || [],
+            title: options.title || 'Select a file',
+        });
+        if (result.canceled || !result.filePaths.length) return null;
+        return result.filePaths[0];
+    });
+
+    checkBackendPort(BACKEND_PORT).then((isTaken) => {
         if (isTaken) {
-            console.log('Port 8000 is taken. Assuming backend is already running manually.');
+            console.log('A.D.A backend port is already in use. Checking its health endpoint.');
             waitForBackend().then(createWindow);
         } else {
             startPythonBackend();
@@ -141,7 +153,7 @@ function waitForBackend() {
     return new Promise((resolve) => {
         const check = () => {
             const http = require('http');
-            http.get('http://127.0.0.1:8000/status', (res) => {
+            http.get(`http://127.0.0.1:${BACKEND_PORT}/status`, (res) => {
                 if (res.statusCode === 200) {
                     console.log('Backend is ready!');
                     resolve();

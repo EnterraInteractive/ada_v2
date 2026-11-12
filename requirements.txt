@@ -2,23 +2,18 @@ fastapi
 uvicorn
 python-socketio
 python-multipart
-# Google GenAI SDK (v1beta)
-google-genai
-# Computer Vision & Audio
 opencv-python
-pyaudio
 pillow
-mss
 # Browser Automation
 playwright
-# Smart Home
-python-kasa
-# 3D Printing
-zeroconf>=0.131.0
-aiohttp>=3.9.0
-# Utilities
-python-dotenv
 # Face & Hand tracking
 mediapipe
-# CAD Generation
-build123d
+# Unreal Editor integration (MCP client; connects to the existing Unreal MCP server)
+mcp>=1.10,<2
+
+# Embedded inference runtime is built from the K2-compatible llama.cpp source.
+# Install it with scripts/ai/install_k2_runtime.ps1 after installing these app dependencies.
+
+# Gemini Live API voice (remote streaming; no local voice model)
+google-genai>=1.30.0,<2
+python-dotenv>=1.0.1,<2

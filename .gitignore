@@ -10,11 +10,8 @@ env/
 # ADA Specific Local Data
 backend/reference.jpg
 backend/settings.json
-backend/last_cad_generation.json
 long_term_memory/
 projects/
-output.stl
-cad_outputs/
 
 # Node.js
 node_modules/
@@ -35,3 +32,23 @@ out/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local inference logs and per-machine settings
+backend/settings.local.json
+runtime_logs/
+
+# Per-workspace A.D.A conversation history and user memory
+.ada/
+
+# Local model weights and downloaded voice assets (keep registry/docs in Git)
+/models/**/*.gguf
+/models/**/*.gguf.*
+/models/**/*.bin
+/models/**/*.safetensors
+/models/**/*.pt
+/models/**/*.pth
+/models/**/*.onnx
+/models/**/*.tflite
+/models/**/*.ckpt
+/models/**/voices/*
+!/models/**/voices/.gitkeep

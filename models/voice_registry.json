@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "active_provider": "gemini_api",
+  "providers": [
+    {
+      "id": "gemini_api",
+      "name": "Gemini Voice API",
+      "transport": "remote_api",
+      "local_model_required": false,
+      "api_key_env": "GEMINI_API_KEY",
+      "config_path": "models/voice/gemini/provider.json",
+      "enabled": true,
+      "model": "gemini-3.8-live"
+    }
+  ]
+}
