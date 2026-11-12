@@ -152,7 +152,7 @@ DEFAULT_SETTINGS = {
             {"id": "gemma-4-12b", "name": "Gemma 4 12B Vision", "model_path": "models/vision/gemma-4-12b/model.gguf", "mmproj_path": "models/vision/gemma-4-12b/mmproj.gguf", "chat_handler": "gemma4", "chat_template_kwargs": {"enable_thinking": true}, "capabilities": ["chat", "vision"], "context_size": 8192, "gpu_layers": 99, "max_tokens": 2048, "temperature": 1.0, "top_p": 0.95, "top_k": 64}
         ]
     },
-    "voice": {"provider": "local", "enabled": True, "whisper_model_path": "models/voice/whisper-small", "piper_model_path": "models/voice/piper/en_US-lessac-medium.onnx", "whisper_device": "cuda", "whisper_compute_type": "float16"},
+    "voice": {"provider": "local", "enabled": True, "whisper_model_path": "models/voice/whisper-large-v3-turbo", "wake_model_path": "models/voice/whisper-small", "piper_model_path": "models/voice/piper/en_US-lessac-medium.onnx", "whisper_device": "cuda", "whisper_compute_type": "float16"},
     "voice_studio": {"enabled": True, "url": "http://127.0.0.1:3900", "engine": "voxcpm2", "model_id": "voxcpm2", "profile": "Jarvis", "language": "en"},
     "brain_profiles": {"boot_brain": "local", "local": "k2-horizon-7b", "big": "gemma-4-12b"}
 }
@@ -591,8 +591,12 @@ async def knowledge_galaxy_hear(payload: dict):
         audio = base64.b64decode(encoded, validate=True)
         if not audio or len(audio) % 2:
             raise ValueError("Audio must be signed 16-bit mono PCM.")
-        await local_voice_service._load_whisper_only()
-        transcript = await asyncio.to_thread(local_voice_service._transcribe, audio)
+        mode = "wake" if str(data.get("mode") or "command").casefold() == "wake" else "command"
+        if mode == "wake":
+            await local_voice_service._load_wake_whisper()
+        else:
+            await local_voice_service._load_whisper_only()
+        transcript = await asyncio.to_thread(local_voice_service._transcribe, audio, mode)
         return {"ok": True, "transcript": transcript}
     except Exception as exc:
         return {"error": f"{type(exc).__name__}: {exc}"}
