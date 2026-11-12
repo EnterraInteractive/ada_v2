@@ -50,39 +50,15 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  const clearError = () => $('error').style.display='none';
  const color = group => {let h=0;for(const c of String(group||'notes'))h=(h*31+c.charCodeAt(0))|0;return 'hsl('+Math.abs(h)%360+',85%,68%)';};
  let currentSource=null,playbackContext=null;
- async function playPcm(encoded,sampleRate=24000){
+ let currentSource=null,playbackContext=null;
+ async function playWav(encoded){
    if(muted||!encoded)return;
    if(currentSource){try{currentSource.stop();}catch{}currentSource=null;}
-   const raw=atob(encoded),view=new DataView(new ArrayBuffer(raw.length));
-   for(let i=0;i<raw.length;i++)view.setUint8(i,raw.charCodeAt(i));
-   const count=Math.floor(raw.length/2),audio=new Float32Array(count);
-   for(let i=0;i<count;i++)audio[i]=view.getInt16(i*2,true)/32768;
    if(!playbackContext)playbackContext=new (window.AudioContext||window.webkitAudioContext)();
-   await playbackContext.resume();const buffer=playbackContext.createBuffer(1,count,sampleRate);buffer.copyToChannel(audio,0);
+   await playbackContext.resume();
+   const buffer=await playbackContext.decodeAudioData(encoded.slice(0));
    const source=playbackContext.createBufferSource();source.buffer=buffer;source.connect(playbackContext.destination);currentSource=source;
    return new Promise(resolve=>{source.onended=()=>{if(currentSource===source)currentSource=null;if(handsFree)status('● LISTENING · SAY “JARVIS” TO WAKE');resolve();};source.start();});
- }
- async function speakBrowserLocal(text){
-   if(muted||!voiceOn)return true;
-   const synth=window.speechSynthesis;if(!synth)return false;
-   let voices=synth.getVoices();
-   if(!voices.length){await new Promise(resolve=>{synth.addEventListener('voiceschanged',resolve,{once:true});setTimeout(resolve,1200);});voices=synth.getVoices();}
-   const local=voices.filter(voice=>voice.localService&&/^en/i.test(voice.lang));
-   if(!local.length)return false;
-   const voice=local.find(item=>/^en-GB/i.test(item.lang))||local[0];
-   synth.cancel();browserSpeaking=true;
-   $('brainBadge').textContent='BRAIN '+(lastBrainId||'local')+' · VOICE browser';
-   $('brainBadge').classList.add('visible');if(brainTimer)clearTimeout(brainTimer);brainTimer=setTimeout(()=>$('brainBadge').classList.remove('visible'),5000);
-   status('● SPEAKING · LOCAL BROWSER VOICE');
-   try{
-     for(const chunk of speechChunks(text)){
-       await new Promise(resolve=>{
-         const utterance=new SpeechSynthesisUtterance(chunk);utterance.voice=voice;utterance.lang=voice.lang;utterance.rate=.94;utterance.pitch=.92;
-         utterance.onend=resolve;utterance.onerror=resolve;synth.speak(utterance);
-       });
-     }
-   }finally{browserSpeaking=false;if(handsFree)status('● LISTENING · SAY “JARVIS” TO WAKE');}
-   return true;
  }
  function speechChunks(text,limit=170){
    const sentences=(text.match(/[^.!?]+[.!?]+|[^.!?]+$/g)||[text]).map(x=>x.trim()).filter(Boolean);
@@ -94,7 +70,8 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
  }
  async function fetchSpeech(text){
    const response=await fetch('/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
-   const result=await response.json();if(result.error)throw new Error(result.error);return result;
+   if(!response.ok)throw new Error(await response.text()||'local speech request failed');
+   return {audio:await response.arrayBuffer(),provider:response.headers.get('X-Jarvis-Voice')||'local voice'};
  }
  async function speak(text){
    if(muted||!voiceOn||!text)return;
@@ -108,7 +85,7 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
        if(result.provider)$('brainBadge').textContent='BRAIN '+(lastBrainId||'local')+' · VOICE '+result.provider;
        $('brainBadge').classList.add('visible');if(brainTimer)clearTimeout(brainTimer);brainTimer=setTimeout(()=>$('brainBadge').classList.remove('visible'),5000);
        const following=i+1<chunks.length?fetchSpeech(chunks[i+1]):null;
-       await playPcm(result.audio_pcm16,result.sample_rate||24000);
+       await playWav(result.audio);
        pending=following;
      }
    }catch(e){
@@ -181,12 +158,17 @@ input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#e8fbff
      const sample=(joined[left]||0)*(1-fraction)+(joined[Math.min(left+1,joined.length-1)]||0)*fraction;
      pcm[i]=Math.max(-1,Math.min(1,sample))*32767;
    }
-   const bytes=new Uint8Array(pcm.buffer);let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(binary);
+   const wav=new ArrayBuffer(44+pcm.byteLength),view=new DataView(wav),bytes=new Uint8Array(wav);
+   const tag=(offset,value)=>{for(let i=0;i<value.length;i++)view.setUint8(offset+i,value.charCodeAt(i));};
+   tag(0,'RIFF');view.setUint32(4,36+pcm.byteLength,true);tag(8,'WAVE');tag(12,'fmt ');view.setUint32(16,16,true);
+   view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,targetRate,true);view.setUint32(28,targetRate*2,true);
+   view.setUint16(32,2,true);view.setUint16(34,16,true);tag(36,'data');view.setUint32(40,pcm.byteLength,true);
+   bytes.set(new Uint8Array(pcm.buffer),44);let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(binary);
  }
  async function transcribeFrames(frames,mode='command',sourceRate=null){
    if(!frames.length)return '';
    const audioPcm=resamplePcm(frames,sourceRate||micContext?.sampleRate||48000);
-   const response=await fetch('/hear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({audio_pcm16:audioPcm,mode})});
+   const response=await fetch('/hear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({audio_wav:audioPcm,mode})});
    const result=await response.json();if(result.error)throw new Error(result.error);return (result.transcript||'').trim();
  }
  async function stopMicrophone(){
