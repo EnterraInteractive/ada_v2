@@ -150,8 +150,8 @@ DEFAULT_SETTINGS = {
         "primary_model_id": "k2-horizon-7b",
         "vision_model_id": "gemma-4-12b",
         "models": [
-            {"id": "k2-horizon-7b", "name": "K2-Horizon 7B", "model_path": "models/language/k2-horizon-7b/model.gguf", "capabilities": ["chat", "coding", "reasoning", "tools"], "context_size": 65536, "gpu_layers": 99, "max_tokens": 32768, "cache_type_k": "q8_0", "cache_type_v": "q8_0", "no_kv_offload": true, "temperature": 1.0, "top_p": 0.95, "top_k": 64, "chat_template_kwargs": {"reasoning_effort": "high", "tool_call_format": "json"}},
-            {"id": "gemma-4-12b", "name": "Gemma 4 12B Vision", "model_path": "models/vision/gemma-4-12b/model.gguf", "mmproj_path": "models/vision/gemma-4-12b/mmproj.gguf", "chat_handler": "gemma4", "chat_template_kwargs": {"enable_thinking": true}, "capabilities": ["chat", "vision"], "context_size": 8192, "gpu_layers": 99, "max_tokens": 2048, "temperature": 1.0, "top_p": 0.95, "top_k": 64}
+            {"id": "k2-horizon-7b", "name": "K2-Horizon 7B", "model_path": "models/language/k2-horizon-7b/model.gguf", "capabilities": ["chat", "coding", "reasoning", "tools"], "context_size": 65536, "gpu_layers": 99, "max_tokens": 32768, "cache_type_k": "q8_0", "cache_type_v": "q8_0", "no_kv_offload": True, "temperature": 1.0, "top_p": 0.95, "top_k": 64, "chat_template_kwargs": {"reasoning_effort": "high", "tool_call_format": "json"}},
+            {"id": "gemma-4-12b", "name": "Gemma 4 12B Vision", "model_path": "models/vision/gemma-4-12b/model.gguf", "mmproj_path": "models/vision/gemma-4-12b/mmproj.gguf", "chat_handler": "gemma4", "chat_template_kwargs": {"enable_thinking": True}, "capabilities": ["chat", "vision"], "context_size": 8192, "gpu_layers": 99, "max_tokens": 2048, "temperature": 1.0, "top_p": 0.95, "top_k": 64}
         ]
     },
     "voice": {"provider": "local", "enabled": True, "whisper_model_path": "models/voice/whisper-large-v3-turbo", "wake_model_path": "models/voice/whisper-small", "piper_model_path": "models/voice/piper/en_US-lessac-medium.onnx", "whisper_device": "cuda", "whisper_compute_type": "float16"},
