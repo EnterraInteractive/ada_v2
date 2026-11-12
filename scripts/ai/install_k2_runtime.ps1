@@ -15,14 +15,14 @@ Write-Host "A.D.A K2-Horizon runtime setup" -ForegroundColor Cyan
 Write-Host "Project: $ProjectRoot"
 Write-Host "Build:   $BuildRoot"
 
-$LocalPython = Join-Path $ProjectRoot ".venv\\Scripts\\python.exe"
+$LocalPython = Join-Path (Join-Path (Join-Path $ProjectRoot ".venv") "Scripts") "python.exe"
 if (Test-Path $LocalPython) {
     $Python = $LocalPython
 } else {
     $Python = (Get-Command python -ErrorAction Stop).Source
     Write-Warning "Project-local .venv was not found. Run scripts\\setup_local.ps1 first; using PATH Python temporarily."
 }
-$CacheRoot = Join-Path $ProjectRoot ".ada\\cache"
+$CacheRoot = Join-Path (Join-Path $ProjectRoot ".ada") "cache"
 $env:PIP_CACHE_DIR = Join-Path $CacheRoot "pip"
 $env:HF_HOME = Join-Path $CacheRoot "huggingface"
 $env:HUGGINGFACE_HUB_CACHE = Join-Path $env:HF_HOME "hub"
