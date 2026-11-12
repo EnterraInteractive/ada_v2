@@ -249,6 +249,35 @@ class AssistantEngine:
                 try:
                     payload = json.loads(raw)
                 except json.JSONDecodeError:
+                    # K2 also supports its structured XML dialect:
+                    # function name, then paired arg_key / arg_value tags.
+                    lines = raw.splitlines()
+                    xml_name = lines[0].strip() if lines else ""
+                    xml_arguments = {}
+                    for key, value in re.findall(
+                        r"<ifm\|arg_key>(.*?)</ifm\|arg_key>\s*"
+                        r"(?:<ifm\|arg_type>.*?</ifm\|arg_type>\s*)?"
+                        r"<ifm\|arg_value>(.*?)</ifm\|arg_value>",
+                        raw,
+                        re.DOTALL,
+                    ):
+                        value = value.strip()
+                        try:
+                            xml_arguments[key.strip()] = json.loads(value)
+                        except json.JSONDecodeError:
+                            xml_arguments[key.strip()] = value
+                    if xml_name and (xml_arguments or "<ifm|tool_call>" in match.group(0)):
+                        calls.append({
+                            "id": str(uuid.uuid4()),
+                            "type": "function",
+                            "function": {
+                                "name": xml_name,
+                                "arguments": json.dumps(xml_arguments),
+                            },
+                        })
+                    else:
+                        continue
+                    remaining = remaining.replace(match.group(0), "", 1)
                     continue
 
                 if isinstance(payload, list):
@@ -277,6 +306,7 @@ class AssistantEngine:
                         })
                 remaining = remaining.replace(match.group(0), "", 1)
             if calls:
+                remaining = re.sub(r"</?ifm\|tool_calls>", "", remaining).strip()
                 break
 
         if not calls:
